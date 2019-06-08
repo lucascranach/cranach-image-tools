@@ -13,7 +13,15 @@ define("PATHS", $paths);
 $dimensions = array();
 $dimensions["imageWidth"] = 1800;
 $dimensions["numberOfWatermarks"] = 20;
+$dimensions["qualityDefault"] = 100;
 define("DIMENSIONS", $dimensions);
+
+$recipes = array();
+$recipes["xsmall"] = '{ "suffix": "xs", "width": 200,  "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["small"] = '{ "suffix": "s",  "width": 300,  "quality": 95, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["medium"] = '{ "suffix": "m",  "width": 800,  "quality": 90, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["large"] = '{ "suffix": "l",  "width": 1200, "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+define("RECIPES", $recipes);
 
 class ImageCollection
 {
@@ -40,7 +48,6 @@ class ImageOperations
         if (!file_exists(PATHS["watermarkImage"])) {
             $this->stitchWatermark();
         }
-
     }
 
     private function stitchWatermark()
@@ -77,24 +84,60 @@ class ImageOperations
     public function convertToJPEG()
     {}
 
-    public function engraveWatermark($image)
-    {   
+    public function engraveWatermark($source, $target)
+    {
+        print "engraveWatermark\n";
 
-        print "engraveWatermark: $image\n";
+        $this->resizeImage($source, $target, DIMENSIONS["imageWidth"], DIMENSIONS["imageWidth"]);
 
-        $source = SOURCE . $image;
+        /* Print Watermark */
+        $watermark = PATHS["watermarkImage"];
+        $cmd = "composite -compose screen -blend 50 -gravity NorthWest -geometry +5+5 " . $watermark . " " . $target . " " . $target;
+        shell_exec($cmd);
+
+        return $target;
+    }
+
+    private function manageTargetPath($image, $suffix = false)
+    {
         $target = TARGET . $image;
         $targetPath = $this->getDirectoryFromPath($target);
         $targetFile = $this->getFilenameFromPath($target);
-        $cleanTarget = BASEPATH . $this->checkPathSegements($targetPath) . $targetFile;
 
-        /* Resize to specific Value */
-        $cmd = "convert -resize " . DIMENSIONS["imageWidth"] . "x" . DIMENSIONS["imageWidth"] . " $source $cleanTarget";
-        shell_exec($cmd);
+        if (isset($suffix)) {
+            preg_match("=(.*?)\.(.*)=", $targetFile, $res);
+            $targetFile = $res[1] . "-" . $suffix . "." . $res[2];
+        }
 
-        /* Engrave Watermark */
-        $watermark = PATHS["watermarkImage"];
-        $cmd = "composite -compose screen -blend 50 -gravity NorthWest -geometry +5+5 " . $watermark . " " . $cleanTarget . " " . $cleanTarget;
+        return BASEPATH . $this->checkPathSegements($targetPath) . $targetFile;
+    }
+
+    public function processImage($image, $recipeData)
+    {
+        print "processImage: $image\n";
+
+        $source = SOURCE . $image;
+        $target = $this->manageTargetPath($image, $recipeData->suffix);
+        $watermark = $recipeData->watermark;
+
+        if ($watermark !== false) {
+            $source = $this->engraveWatermark($source, $target, $recipeData);
+        }
+
+        $this->resizeImage($source, $target, $recipeData);
+    }
+
+    public function resizeImage($source, $target, $data)
+    {
+        $sharpen = (isset($data->sharpen)) ? $data->sharpen : false;
+        $quality = (isset($data->quality)) ? $data->quality : DIMENSIONS["qualityDefault"];
+        $width = (isset($data->width)) ? $data->width : DIMENSIONS["imageWidth"];
+        $height = (isset($data->height)) ? $data->height : DIMENSIONS["imageWidth"];
+        $metadata = (isset($data->metadata)) ? $data->metadata : false;
+
+        $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
+        $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
+        $cmd = "convert $handleMetadata -strip -quality $quality -resize " . $width . "x" . $height . " $sharpen $source $target";
         shell_exec($cmd);
     }
 
@@ -145,14 +188,17 @@ function convertToJPEG($imageCollection, $imageOperations)
     }
 }
 
-function engraveWatermarks($imageCollection, $imageOperations)
+function convertImages($imageCollection, $imageOperations)
 {
     foreach ($imageCollection->images as $image) {
-        $imageOperations->engraveWatermark($image);
+        foreach (RECIPES as $recipe) {
+            $recipeData = json_decode($recipe);
+            $imageOperations->processImage($image, $recipeData);
+        }
     }
 }
 
 $imageCollection = new ImageCollection;
 $imageOperations = new imageOperations;
-convertToJPEG($imageCollection, $imageOperations);
-engraveWatermarks($imageCollection, $imageOperations);
+// convertToJPEG($imageCollection, $imageOperations);
+convertImages($imageCollection, $imageOperations);
