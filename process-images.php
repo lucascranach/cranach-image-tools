@@ -1,26 +1,36 @@
 <?php
 
-define("BASEPATH", "/Users/cnoss/git/cranach-image-tools");
-define("SOURCE", BASEPATH . "/images/src");
-define("TARGET", BASEPATH . "/images/dist");
+// find . -name "*.jpg" -exec rename 's/\.tif-0//' '{}' ';'
+
+define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
+define("BASEPATH", "/Volumes/cranach-data");
+//define("SOURCE", BASEPATH . "/images/src");
+define("SOURCE", BASEPATH."/IIPIMAGES");
+//define("TARGET", BASEPATH . "/images/dist");
+define("TARGET", BASEPATH."/dist");
+
+//define("SOURCE", "/Volumes/cn-extern-lacie-4tb/cranach/webserver/home/mkpacc/IIPIMAGES");
+//define("TARGET", "/Volumes/cn-extern-lacie-4tb/cranach/jpgs");
+define("PATTERN", "*.tif");
 
 $paths = array();
-$paths["watermarkSingle"] = BASEPATH . "/assets/watermark-white.png";
-$paths["watermarkImage"] = BASEPATH . "/assets/stichedWatermark.png";
-$paths["tempFolder"] = BASEPATH . "/tmp";
+$paths["watermarkSingle"] = BASEPATH_ASSETS . "/assets/watermark.png";
+$paths["watermarkImage"] = BASEPATH_ASSETS . "/assets/stichedWatermark.png";
+$paths["tempFolder"] = BASEPATH_ASSETS . "/tmp";
 define("PATHS", $paths);
 
 $dimensions = array();
-$dimensions["imageWidth"] = 1800;
+$dimensions["imageWidth"] = 5600;
 $dimensions["numberOfWatermarks"] = 20;
 $dimensions["qualityDefault"] = 100;
 define("DIMENSIONS", $dimensions);
 
 $recipes = array();
+$recipes["large"] = '{ "suffix": "l",  "width": 1200, "quality": 75, "sharpen": false,               "watermark": true,  "metadata": true }';
 $recipes["xsmall"] = '{ "suffix": "xs", "width": 200,  "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["small"] = '{ "suffix": "s",  "width": 300,  "quality": 95, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["small"] = '{ "suffix": "s",  "width": 300,  "quality": 95, "sharpen": "1.5x1.2+1.0+0.10",  "watermark": false, "metadata": false }';
 $recipes["medium"] = '{ "suffix": "m",  "width": 800,  "quality": 90, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
-$recipes["large"] = '{ "suffix": "l",  "width": 1200, "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+$recipes["xlarge"] = '{ "suffix": "xl", "width": "auto", "quality": 75, "sharpen": false,              "watermark": true,  "metadata": true }';
 define("RECIPES", $recipes);
 
 class ImageCollection
@@ -30,9 +40,10 @@ class ImageCollection
 
     public function __construct()
     {
+        $cmd = "find " . SOURCE . " -name '" . PATTERN . "'";
 
-        $cmd = "find " . SOURCE . " -name *.tif*";
         exec($cmd, $files);
+        print "$cmd";
         foreach ($files as $file) {
             $pattern = "=" . SOURCE . "=";
             $fn = preg_replace($pattern, "", $file);
@@ -41,10 +52,24 @@ class ImageCollection
     }
 }
 
+class ImageBundle
+{
+    public function __construct()
+    {
+        $this->imageStack = [];
+    }
+
+    public function addSubStack($type)
+    {
+        $this->imageStack[$type] = array('maxDimensions' => [], 'images' => []);
+    }
+}
+
 class ImageOperations
 {
     public function __construct()
     {
+
         if (!file_exists(PATHS["watermarkImage"])) {
             $this->stitchWatermark();
         }
@@ -57,13 +82,13 @@ class ImageOperations
 
         /* Create empty image as background layer */
         $stichedImage = PATHS["watermarkImage"];
-        $cmd = "convert -size " . DIMENSIONS["imageWidth"] . "x" . DIMENSIONS["imageWidth"] . " xc:transparent " . $stichedImage;
+        $cmd = "convert  -layers flatten -size " . DIMENSIONS["imageWidth"] . "x" . DIMENSIONS["imageWidth"] . " xc:transparent " . $stichedImage;
         shell_exec($cmd);
 
         /* Resize watermark */
         $tempWatermark = PATHS["tempFolder"] . "/tempWatermark.png";
         $size = DIMENSIONS["imageWidth"] / DIMENSIONS["numberOfWatermarks"];
-        $cmd = "convert -resize $size " . PATHS["watermarkSingle"] . " " . $tempWatermark;
+        $cmd = "convert  -layers flatten -resize $size " . PATHS["watermarkSingle"] . " " . $tempWatermark;
         shell_exec($cmd);
 
         /* Stich watermarks */
@@ -81,64 +106,97 @@ class ImageOperations
         }
     }
 
-    public function convertToJPEG()
-    {}
-
-    public function engraveWatermark($source, $target)
+    public function engraveWatermark($target, $targetData, $recipeData)
     {
         print "engraveWatermark\n";
-
-        $this->resizeImage($source, $target, DIMENSIONS["imageWidth"], DIMENSIONS["imageWidth"]);
+        print " target-> $target\n";
+        // $this->resizeImage($source, $target, DIMENSIONS["imageWidth"], DIMENSIONS["imageWidth"]);
 
         /* Print Watermark */
         $watermark = PATHS["watermarkImage"];
-        $cmd = "composite -compose screen -blend 50 -gravity NorthWest -geometry +5+5 " . $watermark . " " . $target . " " . $target;
+        $tempWatermark = PATHS["tempFolder"] . "/tmp-watermark.png";
+        $cmd = "convert -resize " .  $targetData["dimensions"]["width"] . " " .$watermark . " " . $tempWatermark;
+        shell_exec($cmd);
+        
+        print " watermark -> $tempWatermark\n";
+        $cmd = "composite -compose screen -blend 20 -gravity NorthWest -geometry +5+5 " . $tempWatermark . " " . $target . " " . $target;
         shell_exec($cmd);
 
         return $target;
     }
 
-    private function manageTargetPath($image, $suffix = false)
+    public function manageTargetPath($image, $suffix = false)
     {
         $target = TARGET . $image;
         $targetPath = $this->getDirectoryFromPath($target);
         $targetFile = $this->getFilenameFromPath($target);
 
-        if (isset($suffix)) {
+        if ($suffix !== false) {
             preg_match("=(.*?)\.(.*)=", $targetFile, $res);
             $targetFile = $res[1] . "-" . $suffix . "." . $res[2];
         }
-
         return BASEPATH . $this->checkPathSegements($targetPath) . $targetFile;
     }
 
-    public function processImage($image, $recipeData)
+    public function processImage($image, $recipeData, &$imageBundle)
     {
         print "processImage: $image\n";
 
-        $source = SOURCE . $image;
+        $source = preg_quote(SOURCE . $image);
         $target = $this->manageTargetPath($image, $recipeData->suffix);
-        $watermark = $recipeData->watermark;
 
+        if (!preg_match("=\.jpg$=", $target)) {
+            $target = preg_replace("=\.tif$=", ".jpg", $target);
+        }
+        
+        $targetData = $this->resizeImage($source, $target, $recipeData, $imageBundle);
+
+        $watermark = $recipeData->watermark;
         if ($watermark !== false) {
-            $source = $this->engraveWatermark($source, $target, $recipeData);
+          $this->engraveWatermark($target, $targetData, $recipeData);
         }
 
-        $this->resizeImage($source, $target, $recipeData);
+        return $targetData;
+
     }
 
-    public function resizeImage($source, $target, $data)
+    public function getDimensions($src)
+    {
+        $cmd = "identify $src";
+        $ret = explode(" ", shell_exec($cmd));
+        list($width, $height) = explode("x", $ret[2]);
+        return array('width' => $width, 'height' => $height);
+    }
+
+    public function resizeImage($source, $target, $data, &$imageBundle)
     {
         $sharpen = (isset($data->sharpen)) ? $data->sharpen : false;
         $quality = (isset($data->quality)) ? $data->quality : DIMENSIONS["qualityDefault"];
         $width = (isset($data->width)) ? $data->width : DIMENSIONS["imageWidth"];
         $height = (isset($data->height)) ? $data->height : DIMENSIONS["imageWidth"];
         $metadata = (isset($data->metadata)) ? $data->metadata : false;
+        $source .= "[0]";
 
         $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
         $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
-        $cmd = "convert $handleMetadata -strip -quality $quality -resize " . $width . "x" . $height . " $sharpen $source $target";
+        $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
+        if ($width == "auto") {$imageBundle["maxDimensions"] = $this->getDimensions($source);}
+        $cmd = "convert $handleMetadata -strip -quality $quality " . $resize . " $sharpen $source $target";
+
         shell_exec($cmd);
+        preg_match("=.*/(.*?)$=", $target, $res);
+        $fn = $res[1];
+        return array('dimensions' => $this->getDimensions($target), 'src' => $fn);
+    }
+
+    public function getType($image)
+    {
+        preg_match("=.*/(.*?)/.*?$=", $image, $res);
+        return $res[1];
+    }
+    public function getJsonPath($image)
+    {
+        return preg_replace("=(.*)/.*?/.*?$=", '${1}/imageData.json', $this->manageTargetPath($image));
     }
 
     private function getDirectoryFromPath($path)
@@ -179,26 +237,28 @@ class ImageOperations
 
 }
 
-function convertToJPEG($imageCollection, $imageOperations)
-{
-    foreach ($imageCollection->images as $image) {
-        if (!preg_match("=\.jpg$=", $image)) {
-            print "TBD! convert: $image\n";
-        }
-    }
-}
-
 function convertImages($imageCollection, $imageOperations)
 {
+
     foreach ($imageCollection->images as $image) {
+        $imageBundle = new ImageBundle;
+        $imageType = $imageOperations->getType($image);
+        $imageBundle->addSubStack($imageType);
+
         foreach (RECIPES as $recipe) {
+
             $recipeData = json_decode($recipe);
-            $imageOperations->processImage($image, $recipeData);
+            $imageData = $imageOperations->processImage($image, $recipeData, $imageBundle->imageStack[$imageType]);
+            $imageBundle->imageStack[$imageType]["images"][$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"]);
         }
+
+        $jsonPath = $imageOperations->getJsonPath($image);
+        file_put_contents($jsonPath, json_encode($imageBundle));
+
     }
 }
 
 $imageCollection = new ImageCollection;
-$imageOperations = new imageOperations;
-// convertToJPEG($imageCollection, $imageOperations);
+$imageOperations = new ImageOperations;
+
 convertImages($imageCollection, $imageOperations);
