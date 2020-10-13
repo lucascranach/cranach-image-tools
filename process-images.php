@@ -2,17 +2,18 @@
 
 // find . -name "*.jpg" -exec rename 's/\.tif-0//' '{}' ';'
 define("CACKLING", false); // Soll viel in die Console geschrieben werden oder nicht(false);
+define("MODE", "json-only"); // create-images, json-only,
 
 define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
 define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
 //define("SOURCE", BASEPATH . "/images/src");
-define("SOURCE", BASEPATH."/IIPIMAGES");
+define("SOURCE", BASEPATH . "/IIPIMAGES");
 //define("TARGET", BASEPATH . "/images/dist");
-define("TARGET", BASEPATH."/dist");
+define("TARGET", BASEPATH . "/dist");
 
 //define("SOURCE", "/Volumes/cn-extern-lacie-4tb/cranach/webserver/home/mkpacc/IIPIMAGES");
 //define("TARGET", "/Volumes/cn-extern-lacie-4tb/cranach/jpgs");
-define("PATTERN", "G_*.tif");// 
+define("PATTERN", "G_*.tif");
 
 $paths = array();
 $paths["watermarkSingle"] = BASEPATH_ASSETS . "/assets/watermark.png";
@@ -35,7 +36,7 @@ $recipes["xlarge"] = '{ "suffix": "xl", "width": "auto", "quality": 75, "sharpen
 define("RECIPES", $recipes);
 
 $types = array();
-$types["representative"] = '{ "fragment":"Overall", "sort": "01" }';
+$types["representative"] = '{ "fragment":"Overall", "sort": "01", "fn_pattern":".*Overall\\\."}';
 $types["overall"] = '{ "fragment":"Overall", "sort": "01" }';
 $types["reverse"] = '{ "fragment":"Reverse", "sort": "02" }';
 $types["irr"] = '{ "fragment":"IRR", "sort": "03" }';
@@ -62,36 +63,38 @@ class ImageCollection
 
         $cmd = "find " . SOURCE . " -name '" . PATTERN . "' -mtime -120";
         exec($cmd, $files);
-        
+
         $pattern = "=" . SOURCE . "=";
         $files = preg_replace($pattern, "", $files);
-        
+
         $assets = array();
-        foreach($files as $file){
-          $assets[$this->getBasePath($file)] = 0;
+        foreach ($files as $file) {
+            $assets[$this->getBasePath($file)] = 0;
         }
-        
-        foreach(array_keys($assets) as $assetBasePath){
-          $res = array("name" => $assetBasePath);
-          foreach (TYPES as $typeName => $typeData) {
-              $typeDataJSON = json_decode($typeData);
-              $typePattern = $typeDataJSON->sort . "_" . $typeDataJSON->fragment;
-              $typeFiles = preg_grep("=/$assetBasePath/$typePattern=", $files);
-              $res["data"][$typeName] = $typeFiles;
-          }
-          array_push($this->images, $res);
+
+        foreach (array_keys($assets) as $assetBasePath) {
+            $res = array("name" => $assetBasePath);
+            foreach (TYPES as $typeName => $typeData) {
+                $typeDataJSON = json_decode($typeData);
+                $typePattern = $typeDataJSON->sort . "_" . $typeDataJSON->fragment;
+                $searchPattern = (isset($typeDataJSON->fn_pattern)) ? $typePattern . "/" . $typeDataJSON->fn_pattern : $typePattern;
+                $typeFiles = preg_grep("=/$assetBasePath/$searchPattern=", $files);
+                $res["data"][$typeName] = $typeFiles;
+            }
+            array_push($this->images, $res);
         }
     }
 
-    public function getSize(){
-      return count($this->images);
+    public function getSize()
+    {
+        return count($this->images);
     }
 
-    private function getBasePath($path){
-      return preg_replace("=/(.*?)/.*=",'${1}', $path);
+    private function getBasePath($path)
+    {
+        return preg_replace("=/(.*?)/.*=", '${1}', $path);
     }
 }
-
 
 class ImageBundle
 {
@@ -119,7 +122,7 @@ class ImageOperations
     private function stitchWatermark()
     {
 
-        if(CACKLING) { print "stitchWatermark: "; }
+        if (CACKLING) {print "stitchWatermark: ";}
 
         /* Create empty image as background layer */
         $stichedImage = PATHS["watermarkImage"];
@@ -149,20 +152,21 @@ class ImageOperations
 
     public function engraveWatermark($target, $targetData, $recipeData)
     {
-        if(CACKLING) { print "engraveWatermark\n"; }
-        if(CACKLING) { print " target-> $target\n"; }
+        if (CACKLING) {print "engraveWatermark\n";}
+        if (CACKLING) {print " target-> $target\n";}
         // $this->resizeImage($source, $target, DIMENSIONS["imageWidth"], DIMENSIONS["imageWidth"]);
 
-        /* Print Watermark */
-        $watermark = PATHS["watermarkImage"];
-        $tempWatermark = PATHS["tempFolder"] . "/tmp-watermark.png";
-        $cmd = "convert -quiet -resize " .  $targetData["dimensions"]["width"] . " " .$watermark . " " . $tempWatermark;
-        shell_exec($cmd);
-        
-        if(CACKLING) { print " watermark -> $tempWatermark\n"; }
-        $cmd = "composite -quiet -compose screen -blend 20 -gravity NorthWest -geometry +5+5 " . $tempWatermark . " " . $target . " " . $target;
-        shell_exec($cmd);
+        if (MODE === "create-images") {
+            /* Print Watermark */
+            $watermark = PATHS["watermarkImage"];
+            $tempWatermark = PATHS["tempFolder"] . "/tmp-watermark.png";
+            $cmd = "convert -quiet -resize " . $targetData["dimensions"]["width"] . " " . $watermark . " " . $tempWatermark;
+            shell_exec($cmd);
 
+            if (CACKLING) {print " watermark -> $tempWatermark\n";}
+            $cmd = "composite -quiet -compose screen -blend 20 -gravity NorthWest -geometry +5+5 " . $tempWatermark . " " . $target . " " . $target;
+            shell_exec($cmd);
+        }
         return $target;
     }
 
@@ -181,7 +185,7 @@ class ImageOperations
 
     public function processImage($image, $recipeData, &$imageBundle)
     {
-      if(CACKLING) { print "processImage: $image\n"; }
+        if (CACKLING) {print "processImage: $image\n";}
 
         $source = preg_quote(SOURCE . $image);
         $target = $this->manageTargetPath($image, $recipeData->suffix);
@@ -189,12 +193,12 @@ class ImageOperations
         if (!preg_match("=\.jpg$=", $target)) {
             $target = preg_replace("=\.tif$=", ".jpg", $target);
         }
-        
+
         $targetData = $this->resizeImage($source, $target, $recipeData, $imageBundle);
 
         $watermark = $recipeData->watermark;
         if ($watermark !== false) {
-          $this->engraveWatermark($target, $targetData, $recipeData);
+            $this->engraveWatermark($target, $targetData, $recipeData);
         }
 
         return $targetData;
@@ -211,20 +215,22 @@ class ImageOperations
 
     public function resizeImage($source, $target, $data, &$imageBundle)
     {
+
         $sharpen = (isset($data->sharpen)) ? $data->sharpen : false;
         $quality = (isset($data->quality)) ? $data->quality : DIMENSIONS["qualityDefault"];
         $width = (isset($data->width)) ? $data->width : DIMENSIONS["imageWidth"];
         $height = (isset($data->height)) ? $data->height : DIMENSIONS["imageWidth"];
         $metadata = (isset($data->metadata)) ? $data->metadata : false;
-        $source .= "[0]";
-
-        $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
-        $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
-        $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
         if ($width == "auto") {$imageBundle["maxDimensions"] = $this->getDimensions($source);}
-        $cmd = "convert -quiet $handleMetadata -strip -quality $quality " . $resize . " $sharpen $source $target";
+        $source .= "[0]";
+        if (MODE === "create-images") {
+            $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
+            $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
+            $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
+            $cmd = "convert -quiet $handleMetadata -strip -quality $quality " . $resize . " $sharpen $source $target";
+            shell_exec($cmd);
+        }
 
-        shell_exec($cmd);
         preg_match("=.*/(.*?)$=", $target, $res);
         $fn = $res[1];
         return array('dimensions' => $this->getDimensions($target), 'src' => $fn);
@@ -236,8 +242,9 @@ class ImageOperations
         return $res[1];
     }
 
-    private function getBasePath($path){
-      return preg_replace("=/(.*?)/.*=",'${1}', $path);
+    private function getBasePath($path)
+    {
+        return preg_replace("=/(.*?)/.*=", '${1}', $path);
     }
 
     private function getDirectoryFromPath($path)
@@ -284,30 +291,30 @@ function convertImages($imageCollection, $imageOperations)
     $count = 0;
     foreach ($imageCollection->images as $asset) {
 
-      $assetName = $asset["name"];
-      $assetData = $asset["data"];
+        $assetName = $asset["name"];
+        $assetData = $asset["data"];
 
-      $count ++;
-      print "\nAsset $count from $stackSize // $assetName:";
-      $imageBundle = new ImageBundle;
-      $jsonPath = TARGET . "/$assetName/imageData.json";
+        $count++;
+        print "\nAsset $count from $stackSize // $assetName:";
+        $imageBundle = new ImageBundle;
+        $jsonPath = TARGET . "/$assetName/imageData.json";
 
-      foreach(TYPES as $typeName=>$typeData){
-        $imageBundle->addSubStack($typeName);
-        
-        foreach($assetData[$typeName] as $image){
+        foreach (TYPES as $typeName => $typeData) {
+            $imageBundle->addSubStack($typeName);
 
-          foreach (RECIPES as $recipe) {
-              print ".";
-              $recipeData = json_decode($recipe);
-              $imageData = $imageOperations->processImage($image, $recipeData, $imageBundle->imageStack[$typeName]);
-              $imageBundle->imageStack[$typeName]["images"][$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"]);
-          }
+            foreach ($assetData[$typeName] as $image) {
+
+                foreach (RECIPES as $recipe) {
+                    print ".";
+                    $recipeData = json_decode($recipe);
+                    $imageData = $imageOperations->processImage($image, $recipeData, $imageBundle->imageStack[$typeName]);
+                    $imageBundle->imageStack[$typeName]["images"][$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"]);
+                }
+            }
         }
-      }
 
-      file_put_contents($jsonPath, json_encode($imageBundle));
-      print "written $jsonPath\n";
+        file_put_contents($jsonPath, json_encode($imageBundle));
+        print "written $jsonPath\n";
     }
 }
 
