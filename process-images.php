@@ -1,8 +1,12 @@
 <?php
 
 // find . -name "*.jpg" -exec rename 's/\.tif-0//' '{}' ';'
-define("CACKLING", false); // Soll viel in die Console geschrieben werden oder nicht(false);
-define("MODE", "json-only"); // create-images, json-only,
+
+// Soll viel in die Console geschrieben werden oder nicht(false);
+define("CACKLING", false); 
+
+// create-images, json-only,
+define("MODE", "create-images"); 
 
 define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
 define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
@@ -10,10 +14,12 @@ define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
 define("SOURCE", BASEPATH . "/IIPIMAGES");
 //define("TARGET", BASEPATH . "/images/dist");
 define("TARGET", BASEPATH . "/dist");
+define("JSON_OUTPUT_FN", "imageData-1.0.json");
 
 //define("SOURCE", "/Volumes/cn-extern-lacie-4tb/cranach/webserver/home/mkpacc/IIPIMAGES");
 //define("TARGET", "/Volumes/cn-extern-lacie-4tb/cranach/jpgs");
-define("PATTERN", "G_*.tif");
+define("PATTERN", "G_DE_SKD*.tif");
+
 
 $paths = array();
 $paths["watermarkSingle"] = BASEPATH_ASSETS . "/assets/watermark.png";
@@ -53,6 +59,17 @@ $types["reflected-light"] = '{ "fragment":"Reflected-light", "sort": "13" }';
 $types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "14" }';
 define("TYPES", $types);
 
+
+function getTypeSubfolderName($typeName){
+  $typeDataJSON = json_decode(TYPES[$typeName]);
+  return $typeDataJSON->sort . "_" . $typeDataJSON->fragment;
+}
+
+function getTypeFilenamePattern($typeName){
+  $typeDataJSON = json_decode(TYPES[$typeName]);
+  return $typeDataJSON->fn_pattern;
+}
+
 class ImageCollection
 {
 
@@ -75,9 +92,9 @@ class ImageCollection
         foreach (array_keys($assets) as $assetBasePath) {
             $res = array("name" => $assetBasePath);
             foreach (TYPES as $typeName => $typeData) {
-                $typeDataJSON = json_decode($typeData);
-                $typePattern = $typeDataJSON->sort . "_" . $typeDataJSON->fragment;
-                $searchPattern = (isset($typeDataJSON->fn_pattern)) ? $typePattern . "/" . $typeDataJSON->fn_pattern : $typePattern;
+                $typePattern = getTypeSubfolderName($typeName);
+                $filenamePattern = getTypeFilenamePattern($typeName);
+                $searchPattern = (isset($filenamePattern)) ? $typePattern . "/" . $filenamePattern : $typePattern;
                 $typeFiles = preg_grep("=/$assetBasePath/$searchPattern=", $files);
                 $res["data"][$typeName] = $typeFiles;
             }
@@ -96,6 +113,7 @@ class ImageCollection
     }
 }
 
+
 class ImageBundle
 {
     public function __construct()
@@ -106,6 +124,11 @@ class ImageBundle
     public function addSubStack($type)
     {
         $this->imageStack[$type] = array('maxDimensions' => [], 'images' => []);
+    }
+
+    public function flattenRepresentative()
+    {   
+        $this->imageStack["representative"]["images"]= $this->imageStack["representative"]["images"][0];
     }
 }
 
@@ -154,7 +177,6 @@ class ImageOperations
     {
         if (CACKLING) {print "engraveWatermark\n";}
         if (CACKLING) {print " target-> $target\n";}
-        // $this->resizeImage($source, $target, DIMENSIONS["imageWidth"], DIMENSIONS["imageWidth"]);
 
         if (MODE === "create-images") {
             /* Print Watermark */
@@ -170,25 +192,31 @@ class ImageOperations
         return $target;
     }
 
-    public function manageTargetPath($image, $suffix = false)
+
+    
+    public function manageTargetPath($image, $suffix = false, $typeName)
     {
         $target = TARGET . $image;
         $targetPath = $this->getDirectoryFromPath($target);
         $targetFile = $this->getFilenameFromPath($target);
+        $typeFolder = getTypeSubfolderName($typeName);
 
         if ($suffix !== false) {
             preg_match("=(.*?)\.(.*)=", $targetFile, $res);
             $targetFile = $res[1] . "-" . $suffix . "." . $res[2];
         }
-        return BASEPATH . $this->checkPathSegements($targetPath) . $targetFile;
+
+        $targetPath = BASEPATH . $this->checkPathSegements($targetPath) . $typeFolder;
+        if(!is_dir($targetPath)){ mkdir($targetPath); }
+        return $targetPath ."/". $targetFile;
     }
 
-    public function processImage($image, $recipeData, &$imageBundle)
+    public function processImage($image, $recipeData, &$imageBundle, $typeName)
     {
         if (CACKLING) {print "processImage: $image\n";}
 
         $source = preg_quote(SOURCE . $image);
-        $target = $this->manageTargetPath($image, $recipeData->suffix);
+        $target = $this->manageTargetPath($image, $recipeData->suffix, $typeName );
 
         if (!preg_match("=\.jpg$=", $target)) {
             $target = preg_replace("=\.tif$=", ".jpg", $target);
@@ -293,26 +321,28 @@ function convertImages($imageCollection, $imageOperations)
 
         $assetName = $asset["name"];
         $assetData = $asset["data"];
-
         $count++;
+
         print "\nAsset $count from $stackSize // $assetName:";
         $imageBundle = new ImageBundle;
-        $jsonPath = TARGET . "/$assetName/imageData.json";
+        $jsonPath = TARGET . "/$assetName/" . JSON_OUTPUT_FN;
 
         foreach (TYPES as $typeName => $typeData) {
             $imageBundle->addSubStack($typeName);
-
             foreach ($assetData[$typeName] as $image) {
-
+                $assetImages = array();
                 foreach (RECIPES as $recipe) {
                     print ".";
                     $recipeData = json_decode($recipe);
-                    $imageData = $imageOperations->processImage($image, $recipeData, $imageBundle->imageStack[$typeName]);
-                    $imageBundle->imageStack[$typeName]["images"][$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"]);
+                    $typeFolder = getTypeSubfolderName($typeName);
+                    $imageData = $imageOperations->processImage($image, $recipeData, $imageBundle->imageStack[$typeName], $typeName );
+                    $assetImages[$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"], 'path' => $typeFolder );
                 }
+
+                array_push($imageBundle->imageStack[$typeName]["images"], $assetImages);
             }
         }
-
+        $imageBundle->flattenRepresentative();
         file_put_contents($jsonPath, json_encode($imageBundle));
         print "written $jsonPath\n";
     }
