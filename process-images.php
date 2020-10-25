@@ -18,7 +18,7 @@ define("JSON_OUTPUT_FN", "imageData-1.0.json");
 
 //define("SOURCE", "/Volumes/cn-extern-lacie-4tb/cranach/webserver/home/mkpacc/IIPIMAGES");
 //define("TARGET", "/Volumes/cn-extern-lacie-4tb/cranach/jpgs");
-define("PATTERN", "G_DE_SKD*.tif");
+define("PATTERN", "*.tif");
 
 
 $paths = array();
@@ -78,7 +78,7 @@ class ImageCollection
     public function __construct()
     {
 
-        $cmd = "find " . SOURCE . " -name '" . PATTERN . "' -mtime -120";
+        $cmd = "find " . SOURCE . " -name '" . PATTERN . "' "; // -mtime -120
         exec($cmd, $files);
 
         $pattern = "=" . SOURCE . "=";
@@ -326,6 +326,11 @@ function convertImages($imageCollection, $imageOperations)
         print "\nAsset $count from $stackSize // $assetName:";
         $imageBundle = new ImageBundle;
         $jsonPath = TARGET . "/$assetName/" . JSON_OUTPUT_FN;
+
+        if(file_exists($jsonPath)){
+          print "… already exists :)";
+          continue;
+        }
 
         foreach (TYPES as $typeName => $typeData) {
             $imageBundle->addSubStack($typeName);
