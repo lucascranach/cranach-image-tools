@@ -1,0 +1,1 @@
+rsync -avz --delete -e ssh /Volumes/LaCieCn/cranach-data/dist-2020/ cnoss@www.lucascranach.de:/home/cnoss/web/images/

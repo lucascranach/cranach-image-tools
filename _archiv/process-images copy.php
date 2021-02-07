@@ -3,10 +3,10 @@
 // find . -name "*.jpg" -exec rename 's/\.tif-0//' '{}' ';'
 
 // Soll viel in die Console geschrieben werden oder nicht(false);
-define("CACKLING", false);
+define("CACKLING", true); 
 
 // create-images, json-only,
-define("MODE", "create-images");
+define("MODE", "create-images"); 
 
 define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
 define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
@@ -14,12 +14,14 @@ define("SOURCE", BASEPATH . "/IIPIMAGES-test");
 define("TARGET", BASEPATH . "/dist-test");
 define("JSON_OUTPUT_FN", "imageData-1.0.json");
 
+//define("SOURCE", "/Volumes/cn-extern-lacie-4tb/cranach/webserver/home/mkpacc/IIPIMAGES");
+//define("TARGET", "/Volumes/cn-extern-lacie-4tb/cranach/jpgs");
 define("PATTERN", "*.tif");
 
+
 $paths = array();
-$paths["watermark"] = BASEPATH_ASSETS . "/assets/watermark-shadow.svg";
+$paths["watermark"] = BASEPATH_ASSETS . "/assets/watermark-outlines.svg";
 $paths["tempFolder"] = BASEPATH_ASSETS . "/tmp";
-$paths["watermark-temp"] = $paths["tempFolder"] . "/watermark-tmp.png";
 define("PATHS", $paths);
 
 $dimensions = array();
@@ -27,12 +29,11 @@ $dimensions["qualityDefault"] = 100;
 define("DIMENSIONS", $dimensions);
 
 $recipes = array();
-$recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
-$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
-$recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
+// $recipes["large"] = '{ "suffix": "l",  "width": 1200, "quality": 75, "sharpen": false,               "watermark": true,  "metadata": true }';
+$recipes["xsmall"] = '{ "suffix": "xs", "width": 200,  "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+// $recipes["small"] = '{ "suffix": "s",  "width": 300,  "quality": 95, "sharpen": "1.5x1.2+1.0+0.10",  "watermark": false, "metadata": false }';
+// $recipes["medium"] = '{ "suffix": "m",  "width": 800,  "quality": 90, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["xlarge"] = '{ "suffix": "xl", "width": "auto", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 define("RECIPES", $recipes);
 
 $types = array();
@@ -53,16 +54,15 @@ $types["reflected-light"] = '{ "fragment":"Reflected-light", "sort": "13" }';
 $types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "14" }';
 define("TYPES", $types);
 
-function getTypeSubfolderName($typeName)
-{
-    $typeDataJSON = json_decode(TYPES[$typeName]);
-    return $typeDataJSON->sort . "_" . $typeDataJSON->fragment;
+
+function getTypeSubfolderName($typeName){
+  $typeDataJSON = json_decode(TYPES[$typeName]);
+  return $typeDataJSON->sort . "_" . $typeDataJSON->fragment;
 }
 
-function getTypeFilenamePattern($typeName)
-{
-    $typeDataJSON = json_decode(TYPES[$typeName]);
-    return $typeDataJSON->fn_pattern;
+function getTypeFilenamePattern($typeName){
+  $typeDataJSON = json_decode(TYPES[$typeName]);
+  return $typeDataJSON->fn_pattern;
 }
 
 class ImageCollection
@@ -86,7 +86,6 @@ class ImageCollection
 
         foreach (array_keys($assets) as $assetBasePath) {
             $res = array("name" => $assetBasePath);
-
             foreach (TYPES as $typeName => $typeData) {
                 $typePattern = getTypeSubfolderName($typeName);
                 $filenamePattern = getTypeFilenamePattern($typeName);
@@ -109,6 +108,7 @@ class ImageCollection
     }
 }
 
+
 class ImageBundle
 {
     public function __construct()
@@ -122,8 +122,8 @@ class ImageBundle
     }
 
     public function flattenRepresentative()
-    {
-        $this->imageStack["representative"]["images"] = $this->imageStack["representative"]["images"][0];
+    {   
+        $this->imageStack["representative"]["images"]= $this->imageStack["representative"]["images"][0];
     }
 }
 
@@ -132,6 +132,40 @@ class ImageOperations
     public function __construct()
     {
 
+        if (!file_exists(PATHS["watermarkImage"])) {
+            $this->stitchWatermark();
+        }
+    }
+
+    private function stitchWatermark()
+    {
+
+        if (CACKLING) {print "stitchWatermark: ";}
+
+        /* Create empty image as background layer */
+        $stichedImage = PATHS["watermarkImage"];
+        $cmd = "convert -quiet -layers flatten -size " . DIMENSIONS["imageWidth"] . "x" . DIMENSIONS["imageWidth"] . " xc:transparent " . $stichedImage;
+        shell_exec($cmd);
+
+        /* Resize watermark */
+        $tempWatermark = PATHS["tempFolder"] . "/tempWatermark.png";
+        $size = DIMENSIONS["imageWidth"] / DIMENSIONS["numberOfWatermarks"];
+        $cmd = "convert -quiet -layers flatten -resize $size " . PATHS["watermarkSingle"] . " " . $tempWatermark;
+        shell_exec($cmd);
+
+        /* Stich watermarks */
+        $steps = array();
+        $steps["x"] = DIMENSIONS["imageWidth"] / DIMENSIONS["numberOfWatermarks"];
+        $steps["y"] = $steps["x"];
+        $iterations = DIMENSIONS["numberOfWatermarks"] * $steps["x"];
+
+        for ($x = 0; $x < $iterations; $x += $steps["x"]) {
+            for ($y = 0; $y < $iterations; $y += $steps["y"]) {
+                $cmd = "composite -compose screen -gravity NorthWest -geometry +" . $x . "+" . $y . " " . $tempWatermark . " " . $stichedImage . " " . $stichedImage;
+                shell_exec($cmd);
+                print ".";
+            }
+        }
     }
 
     public function engraveWatermark($target, $targetData, $recipeData)
@@ -140,19 +174,22 @@ class ImageOperations
         if (CACKLING) {print " target-> $target\n";}
 
         if (MODE === "create-images") {
-            $watermark = PATHS["watermark"];
-            $watermark_temp = PATHS["watermark-temp"];
-            $watermark_size = $targetData["dimensions"]["width"] * 0.2;
-
-            if (CACKLING) {print " watermark -> $tempWatermark\n";}
-            $cmd = "magick convert -background transparent -resize $watermark_size $watermark $watermark_temp && magick composite -compose difference -tile -blend 15 " . $watermark_temp . " " . $target . " " . $target;
+            /* Print Watermark */
+            $watermark = PATHS["watermarkImage"];
+            $tempWatermark = PATHS["tempFolder"] . "/tmp-watermark.png";
+            $cmd = "convert -quiet -resize " . $targetData["dimensions"]["width"] . " " . $watermark . " " . $tempWatermark;
             shell_exec($cmd);
 
+            if (CACKLING) {print " watermark -> $tempWatermark\n";}
+            $cmd = "composite -quiet -compose screen -blend 20 -gravity NorthWest -geometry +5+5 " . $tempWatermark . " " . $target . " " . $target;
+            shell_exec($cmd);
         }
         return $target;
     }
 
-    public function manageTargetPath($image, $suffix = false, $typeName, $subfolder = false)
+
+    
+    public function manageTargetPath($image, $suffix = false, $typeName)
     {
         $target = TARGET . $image;
         $targetPath = $this->getDirectoryFromPath($target);
@@ -164,36 +201,23 @@ class ImageOperations
             $targetFile = $res[1] . "-" . $suffix . "." . $res[2];
         }
 
-        $targetPath = BASEPATH . $this->checkPathSegements($targetPath);
-        $pattern = '/'.$typeFolder.'\//';
-        $targetPath = (preg_match($pattern, $targetPath)) ? $targetPath : $targetPath . $typeFolder;
-        if (!is_dir($targetPath)) {mkdir($targetPath);}
-
-        
-  
-        if($subfolder !== false){
-          $targetPath = $targetPath ."/". $subfolder;
-          
-        }
-        
-        // if (!is_dir($targetPath)) {mkdir($targetPath);}
-        return $targetPath . "/" . $targetFile;
+        $targetPath = BASEPATH . $this->checkPathSegements($targetPath) . $typeFolder;
+        if(!is_dir($targetPath)){ mkdir($targetPath); }
+        return $targetPath ."/". $targetFile;
     }
 
-    public function processImage($image, $recipeTitle, $recipeData, &$imageBundle, $typeName)
+    public function processImage($image, $recipeData, &$imageBundle, $typeName)
     {
         if (CACKLING) {print "processImage: $image\n";}
 
         $source = preg_quote(SOURCE . $image);
-        $target = $this->manageTargetPath($image, $recipeData->suffix, $typeName);
+        $target = $this->manageTargetPath($image, $recipeData->suffix, $typeName );
 
         if (!preg_match("=\.jpg$=", $target)) {
             $target = preg_replace("=\.tif$=", ".jpg", $target);
         }
 
-        if(file_exists($target)) return "skip";
         $targetData = $this->resizeImage($source, $target, $recipeData, $imageBundle);
-  
 
         $watermark = $recipeData->watermark;
         if ($watermark !== false) {
@@ -226,20 +250,13 @@ class ImageOperations
             $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
             $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
             $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
-            $cmd = "convert -interlace plane -quiet $handleMetadata -strip -quality $quality " . $resize . " $sharpen $source $target";
-
+            $cmd = "convert -quiet $handleMetadata -strip -quality $quality " . $resize . " $sharpen $source $target";
             shell_exec($cmd);
         }
 
         preg_match("=.*/(.*?)$=", $target, $res);
         $fn = $res[1];
         return array('dimensions' => $this->getDimensions($target), 'src' => $fn);
-    }
-
-    public function createCustomTiles($source, $target)
-    {
-
-
     }
 
     public function getType($image)
@@ -280,10 +297,7 @@ class ImageOperations
         unset($pathSegments[3]);
         $targetPath = "/" . array_shift($pathSegments);
         foreach ($pathSegments as $segment) {
-            if ($segment !== "pyramid") {
-                $targetPath .= "$segment/";
-            }
-
+            $targetPath .= "$segment/";
             if (!file_exists(BASEPATH . $targetPath)) {
                 $this->createDirectory($targetPath);
             }
@@ -308,28 +322,23 @@ function convertImages($imageCollection, $imageOperations)
         $imageBundle = new ImageBundle;
         $jsonPath = TARGET . "/$assetName/" . JSON_OUTPUT_FN;
 
-        if (file_exists($jsonPath)) {
-            print "… already exists :)";
-            continue;
+        if(file_exists($jsonPath)){
+          print "… already exists :)";
+          continue;
         }
 
         foreach (TYPES as $typeName => $typeData) {
             $imageBundle->addSubStack($typeName);
             foreach ($assetData[$typeName] as $image) {
                 $assetImages = array();
-                $recipeTitles = array_keys(RECIPES);
-                sort($recipeTitles);
-                foreach ($recipeTitles as $recipeTitle) {
+                foreach (RECIPES as $recipe) {
                     print ".";
-                    $recipe = RECIPES[$recipeTitle];
                     $recipeData = json_decode($recipe);
                     $typeFolder = getTypeSubfolderName($typeName);
-                    $imageData = $imageOperations->processImage($image, $recipeTitle, $recipeData, $imageBundle->imageStack[$typeName], $typeName);
-                    if($imageData === "skip"){
-                      print "Skip $image\n"; continue;
-                    }
-                    $assetImages[$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"], 'path' => $typeFolder);
+                    $imageData = $imageOperations->processImage($image, $recipeData, $imageBundle->imageStack[$typeName], $typeName );
+                    $assetImages[$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"], 'path' => $typeFolder );
                 }
+
                 array_push($imageBundle->imageStack[$typeName]["images"], $assetImages);
             }
         }
