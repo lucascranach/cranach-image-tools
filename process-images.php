@@ -13,6 +13,7 @@ define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
 define("SOURCE", BASEPATH . "/IIPIMAGES-test");
 define("TARGET", BASEPATH . "/dist-test");
 define("JSON_OUTPUT_FN", "imageData-1.0.json");
+define("MAGICK_SLICER_PATH", "./libs/MagickSlicer-master/magick-slicer.sh");
 
 define("PATTERN", "*.tif");
 
@@ -27,12 +28,13 @@ $dimensions["qualityDefault"] = 100;
 define("DIMENSIONS", $dimensions);
 
 $recipes = array();
-$recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
-$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+// $recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+// $recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+// $recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+// $recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+// $recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
+$recipes["tiles"]  = '{ "suffix": "origin",  "width": 256,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 define("RECIPES", $recipes);
 
 $types = array();
@@ -152,7 +154,7 @@ class ImageOperations
         return $target;
     }
 
-    public function manageTargetPath($image, $suffix = false, $typeName, $subfolder = false)
+    public function manageTargetPath($image, $recipeTitle, $suffix = false, $typeName)
     {
         $target = TARGET . $image;
         $targetPath = $this->getDirectoryFromPath($target);
@@ -168,15 +170,11 @@ class ImageOperations
         $pattern = '/'.$typeFolder.'\//';
         $targetPath = (preg_match($pattern, $targetPath)) ? $targetPath : $targetPath . $typeFolder;
         if (!is_dir($targetPath)) {mkdir($targetPath);}
-
-        
   
-        if($subfolder !== false){
-          $targetPath = $targetPath ."/". $subfolder;
-          
-        }
+        /*if($recipeTitle === "tiles"){
+          $targetFile = preg_replace("=\..*$=", "-tiles/", $targetFile);
+        }*/
         
-        // if (!is_dir($targetPath)) {mkdir($targetPath);}
         return $targetPath . "/" . $targetFile;
     }
 
@@ -185,19 +183,24 @@ class ImageOperations
         if (CACKLING) {print "processImage: $image\n";}
 
         $source = preg_quote(SOURCE . $image);
-        $target = $this->manageTargetPath($image, $recipeData->suffix, $typeName);
+        $target = $this->manageTargetPath($image, $recipeTitle, $recipeData->suffix, $typeName);
 
         if (!preg_match("=\.jpg$=", $target)) {
             $target = preg_replace("=\.tif$=", ".jpg", $target);
         }
 
-        if(file_exists($target)) return "skip";
-        $targetData = $this->resizeImage($source, $target, $recipeData, $imageBundle);
-  
+        if($recipeTitle === "tiles"){
+          $source = $target;
+          $targetData = $this->createTiles($source);
 
-        $watermark = $recipeData->watermark;
-        if ($watermark !== false) {
+        }else{
+          if(file_exists($target)) return "skip";
+
+          $targetData = $this->resizeImage($source, $target, $recipeData, $imageBundle);
+          $watermark = $recipeData->watermark;
+          if ($watermark !== false) {
             $this->engraveWatermark($target, $targetData, $recipeData);
+          }
         }
 
         return $targetData;
@@ -236,9 +239,18 @@ class ImageOperations
         return array('dimensions' => $this->getDimensions($target), 'src' => $fn);
     }
 
-    public function createCustomTiles($source, $target)
-    {
+    public function createTiles($source)
+    { 
+      preg_match("=(.*)\-=", $source, $res);
+      $target = $res[1];
 
+      if(file_exists($target)){
+        return "skip";
+      }
+      mkdir($target, 0775);
+
+      $cmd = MAGICK_SLICER_PATH . " -i $source -o $target";
+      shell_exec($cmd);
 
     }
 
