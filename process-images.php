@@ -28,17 +28,17 @@ $dimensions["qualityDefault"] = 100;
 define("DIMENSIONS", $dimensions);
 
 $recipes = array();
-// $recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-// $recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-// $recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-// $recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
-// $recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+$recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["tiles"]  = '{ "suffix": "origin",  "width": 256,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 define("RECIPES", $recipes);
 
 $types = array();
-$types["representative"] = '{ "fragment":"Overall", "sort": "01", "fn_pattern":".*Overall\\\."}';
+// $types["representative"] = '{ "fragment":"Overall", "sort": "01", "fn_pattern":".*Overall\\\."}';
 $types["overall"] = '{ "fragment":"Overall", "sort": "01" }';
 $types["reverse"] = '{ "fragment":"Reverse", "sort": "02" }';
 $types["irr"] = '{ "fragment":"IRR", "sort": "03" }';
@@ -170,10 +170,6 @@ class ImageOperations
         $pattern = '/'.$typeFolder.'\//';
         $targetPath = (preg_match($pattern, $targetPath)) ? $targetPath : $targetPath . $typeFolder;
         if (!is_dir($targetPath)) {mkdir($targetPath);}
-  
-        /*if($recipeTitle === "tiles"){
-          $targetFile = preg_replace("=\..*$=", "-tiles/", $targetFile);
-        }*/
         
         return $targetPath . "/" . $targetFile;
     }
@@ -190,9 +186,15 @@ class ImageOperations
         }
 
         if($recipeTitle === "tiles"){
-          $source = $target;
-          $targetData = $this->createTiles($source);
+          $tileSource = $target;
+          preg_match("=(.*)\-=", $tileSource, $res);
+          $tileTarget = $res[1];
 
+          if(file_exists($tileTarget)) return "skip";
+          $pattern = TARGET;
+          $url = preg_replace("=$pattern/=", "", $tileTarget);
+          $targetData = $this->createTiles($tileSource, $tileTarget, $url);
+          
         }else{
           if(file_exists($target)) return "skip";
 
@@ -239,19 +241,43 @@ class ImageOperations
         return array('dimensions' => $this->getDimensions($target), 'src' => $fn);
     }
 
-    public function createTiles($source)
+    public function createTiles($source, $target, $url)
     { 
-      preg_match("=(.*)\-=", $source, $res);
-      $target = $res[1];
-
-      if(file_exists($target)){
-        return "skip";
-      }
-      mkdir($target, 0775);
+      
+      // mkdir($target, 0775);
 
       $cmd = MAGICK_SLICER_PATH . " -i $source -o $target";
       shell_exec($cmd);
 
+      $dzi_filename = $target . ".dzi";
+      $dzi_data = $this->getDziXml($dzi_filename);
+
+      $targetData = [];
+      $targetData['xmlns']          = 'http://schemas.microsoft.com/deepzoom/2008';
+      $targetData['Url']            = $url . "_files/";
+      $targetData['Overlap']        = $dzi_data["overlap"];
+      $targetData['TileSize']       = $dzi_data["tileSize"];
+      $targetData['Format']         = $dzi_data["format"];
+      $targetData['Size']           = [];
+      $targetData['Size']["Width"]  = $dzi_data["width"];
+      $targetData['Size']["Height"] = $dzi_data["height"];
+
+      return $targetData;
+
+    }
+
+    public function getDziXml($xml_file){
+      $ret = [];
+      $xml = simplexml_load_file($xml_file);
+    
+
+      $ret["width"]    = (int)$xml->Size['Width'];
+      $ret["height"]   = (int)$xml->Size['Height'];
+      $ret["tileSize"] = (int)$xml['TileSize'];
+      $ret["overlap"]  = (int)$xml['Overlap'][0];
+      $ret["format"]   = (string)$xml['Format'];
+      
+      return $ret;
     }
 
     public function getType($image)
@@ -340,12 +366,23 @@ function convertImages($imageCollection, $imageOperations)
                     if($imageData === "skip"){
                       print "Skip $image\n"; continue;
                     }
-                    $assetImages[$recipeData->suffix] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"], 'path' => $typeFolder);
+                    if($recipeTitle === "tiles"){
+                      $assetImages[$recipeTitle] = array('dzi' => $imageData);
+                    }else{
+                      $assetImages[$recipeTitle] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"], 'path' => $typeFolder);
+                    }
+
+                    var_dump($assetImages);
+                    
                 }
+
+                // print "\n-------------\n";
+                // print "Type: $typeName"
                 array_push($imageBundle->imageStack[$typeName]["images"], $assetImages);
+
             }
         }
-        $imageBundle->flattenRepresentative();
+        // $imageBundle->flattenRepresentative();
         file_put_contents($jsonPath, json_encode($imageBundle));
         print "written $jsonPath\n";
     }
