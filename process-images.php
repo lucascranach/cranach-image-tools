@@ -31,14 +31,13 @@ $recipes = array();
 $recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 $recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 $recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
-$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+#$recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
+#$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
-$recipes["tiles"]  = '{ "suffix": "origin",  "width": 256,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+# $recipes["tiles"]  = '{ "suffix": "origin",  "width": 256,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 define("RECIPES", $recipes);
 
 $types = array();
-// $types["representative"] = '{ "fragment":"Overall", "sort": "01", "fn_pattern":".*Overall\\\."}';
 $types["overall"] = '{ "fragment":"Overall", "sort": "01" }';
 $types["reverse"] = '{ "fragment":"Reverse", "sort": "02" }';
 $types["irr"] = '{ "fragment":"IRR", "sort": "03" }';
