@@ -5,14 +5,14 @@
 // Soll viel in die Console geschrieben werden oder nicht(false);
 define("CACKLING", false);
 
-// create-images, json-only,
-define("MODE", "create-images");
+// create-images, json-only, create-images
+define("MODE", "json-only");
 
 define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
 define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
-define("SOURCE", BASEPATH . "/IIPIMAGES-test");
-define("TARGET", BASEPATH . "/dist-test");
-define("JSON_OUTPUT_FN", "imageData-1.0.json");
+define("SOURCE", BASEPATH . "/IIPIMAGES");
+define("TARGET", BASEPATH . "/dist-2021");
+define("JSON_OUTPUT_FN", "imageData-1.1.json");
 define("MAGICK_SLICER_PATH", "./libs/MagickSlicer-master/magick-slicer.sh");
 
 define("PATTERN", "*.tif");
