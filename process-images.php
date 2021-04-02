@@ -219,7 +219,12 @@ class ImageOperations
         $width = (isset($data->width)) ? $data->width : DIMENSIONS["imageWidth"];
         $height = (isset($data->height)) ? $data->height : DIMENSIONS["imageWidth"];
         $metadata = (isset($data->metadata)) ? $data->metadata : false;
-        if ($width == "auto") {$imageBundle["maxDimensions"] = $this->getDimensions($source);}
+        if ($width == "auto") {
+          $imageBundle["maxDimensions"] = $this->getDimensions($source);
+        }else{
+          $imageBundle["maxDimensions"]["width"] = $width;
+          $imageBundle["maxDimensions"]["height"] = $height;
+        }
         $source .= "[0]";
         if (MODE === "create-images") {
             $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
