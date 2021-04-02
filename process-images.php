@@ -4,12 +4,13 @@
 
 // Soll viel in die Console geschrieben werden oder nicht(false);
 define("CACKLING", false);
+define("FORCE", true);
 
 // create-images, json-only, create-images
 define("MODE", "json-only");
 
 define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
-define("BASEPATH", "/Volumes/LaCieCn/cranach-data");
+define("BASEPATH", "/Volumes/LaCieBackup/cranach-data");
 define("SOURCE", BASEPATH . "/IIPIMAGES");
 define("TARGET", BASEPATH . "/dist-2021");
 define("JSON_OUTPUT_FN", "imageData-1.1.json");
@@ -28,13 +29,13 @@ $dimensions["qualityDefault"] = 100;
 define("DIMENSIONS", $dimensions);
 
 $recipes = array();
-$recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
-$recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["small"] =  '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 #$recipes["large"] =  '{ "suffix": "l",      "width": 1200,   "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 #$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
-# $recipes["tiles"]  = '{ "suffix": "origin",  "width": 256,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
+$recipes["tiles"]  = '{ "format": "dzi"}';
 define("RECIPES", $recipes);
 
 $types = array();
@@ -185,18 +186,12 @@ class ImageOperations
         }
 
         if($recipeTitle === "tiles"){
-          $tileSource = $target;
-          preg_match("=(.*)\-=", $tileSource, $res);
+          $tileSource = $image;
+          preg_match("=.*\/(.*)\.=", $tileSource, $res);
           $tileTarget = $res[1];
-
-          if(file_exists($tileTarget)) return "skip";
-          $pattern = TARGET;
-          $url = preg_replace("=$pattern/=", "", $tileTarget);
-          $targetData = $this->createTiles($tileSource, $tileTarget, $url);
+          $targetData['src'] = $tileTarget . '.dzi';
           
         }else{
-          if(file_exists($target)) return "skip";
-
           $targetData = $this->resizeImage($source, $target, $recipeData, $imageBundle);
           $watermark = $recipeData->watermark;
           if ($watermark !== false) {
@@ -238,45 +233,6 @@ class ImageOperations
         preg_match("=.*/(.*?)$=", $target, $res);
         $fn = $res[1];
         return array('dimensions' => $this->getDimensions($target), 'src' => $fn);
-    }
-
-    public function createTiles($source, $target, $url)
-    { 
-      
-      // mkdir($target, 0775);
-
-      $cmd = MAGICK_SLICER_PATH . " -i $source -o $target";
-      shell_exec($cmd);
-
-      $dzi_filename = $target . ".dzi";
-      $dzi_data = $this->getDziXml($dzi_filename);
-
-      $targetData = [];
-      $targetData['xmlns']          = 'http://schemas.microsoft.com/deepzoom/2008';
-      $targetData['Url']            = $url . "_files/";
-      $targetData['Overlap']        = $dzi_data["overlap"];
-      $targetData['TileSize']       = $dzi_data["tileSize"];
-      $targetData['Format']         = $dzi_data["format"];
-      $targetData['Size']           = [];
-      $targetData['Size']["Width"]  = $dzi_data["width"];
-      $targetData['Size']["Height"] = $dzi_data["height"];
-
-      return $targetData;
-
-    }
-
-    public function getDziXml($xml_file){
-      $ret = [];
-      $xml = simplexml_load_file($xml_file);
-    
-
-      $ret["width"]    = (int)$xml->Size['Width'];
-      $ret["height"]   = (int)$xml->Size['Height'];
-      $ret["tileSize"] = (int)$xml['TileSize'];
-      $ret["overlap"]  = (int)$xml['Overlap'][0];
-      $ret["format"]   = (string)$xml['Format'];
-      
-      return $ret;
     }
 
     public function getType($image)
@@ -345,7 +301,7 @@ function convertImages($imageCollection, $imageOperations)
         $imageBundle = new ImageBundle;
         $jsonPath = TARGET . "/$assetName/" . JSON_OUTPUT_FN;
 
-        if (file_exists($jsonPath)) {
+        if (file_exists($jsonPath) && !FORCE ) {
             print "… already exists :)";
             continue;
         }
@@ -366,13 +322,10 @@ function convertImages($imageCollection, $imageOperations)
                       print "Skip $image\n"; continue;
                     }
                     if($recipeTitle === "tiles"){
-                      $assetImages[$recipeTitle] = array('dzi' => $imageData);
+                      $assetImages[$recipeTitle] = array('type'=>'dzi', 'src' => $imageData["src"], 'path' => $typeFolder);
                     }else{
                       $assetImages[$recipeTitle] = array('dimensions' => $imageData["dimensions"], 'src' => $imageData["src"], 'path' => $typeFolder);
                     }
-
-                    var_dump($assetImages);
-                    
                 }
 
                 // print "\n-------------\n";
