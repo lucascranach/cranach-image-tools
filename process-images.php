@@ -1,22 +1,26 @@
 <?php
 
-// find . -name "*.jpg" -exec rename 's/\.tif-0//' '{}' ';'
+$config = getConfig();
+
 
 // Soll viel in die Console geschrieben werden oder nicht(false);
-define("CACKLING", false);
-define("FORCE", true);
+define("CACKLING", isset($config['CACKLING']) ? $config['CACKLING'] : false);
+
+// Bestehende Bilder überschreiben?
+define("FORCE", isset($config['FORCE']) ? $config['FORCE'] : false);
+
 
 // create-images, json-only, create-images
-define("MODE", "json-only");
+define("MODE", isset($config['MODE']) ? $config['MODE'] : 'json-only');
 
-define("BASEPATH_ASSETS", "/Users/cnoss/git/lucascranach/image-tools");
-define("BASEPATH", "/Volumes/LaCieBackup/cranach-data");
-define("SOURCE", BASEPATH . "/IIPIMAGES");
-define("TARGET", BASEPATH . "/dist-2021");
-define("JSON_OUTPUT_FN", "imageData-1.1.json");
-define("MAGICK_SLICER_PATH", "./libs/MagickSlicer-master/magick-slicer.sh");
+define("BASEPATH_ASSETS", isset($config['BASEPATH_ASSETS']) ? $config['BASEPATH_ASSETS'] : './');
+define("BASEPATH", isset($config['BASEPATH']) ? $config['BASEPATH'] : './data');
+define("SOURCE", BASEPATH . isset($config['SOURCE']) ? $config['SOURCE'] : '/IIPIMAGES');
+define("TARGET", BASEPATH . isset($config['TARGET']) ? $config['TARGET'] : '/dist-2021');
+define("JSON_OUTPUT_FN", isset($config['JSON_OUTPUT_FN']) ? $config['JSON_OUTPUT_FN'] : 'imageData-1.1.json');
+define("MAGICK_SLICER_PATH", isset($config['MAGICK_SLICER_PATH']) ? $config['MAGICK_SLICER_PATH'] : './libs/MagickSlicer-master/magick-slicer.sh');
 
-define("PATTERN", "*.tif");
+define("PATTERN", isset($config['PATTERN']) ? $config['PATTERN'] : '*.tif');
 
 $paths = array();
 $paths["watermark"] = BASEPATH_ASSETS . "/assets/watermark-shadow.svg";
@@ -55,6 +59,13 @@ $types["reflected-light"] = '{ "fragment":"Reflected-light", "sort": "13" }';
 $types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "14" }';
 define("TYPES", $types);
 
+function getConfig(){
+  $config_file = './image-tools.config';
+  if(!file_exists($config_file)) return false;
+  $config = file_get_contents($config_file);
+  return json_decode($config, true);
+}
+
 function getTypeSubfolderName($typeName)
 {
     $typeDataJSON = json_decode(TYPES[$typeName]);
@@ -66,6 +77,7 @@ function getTypeFilenamePattern($typeName)
     $typeDataJSON = json_decode(TYPES[$typeName]);
     return $typeDataJSON->fn_pattern;
 }
+
 
 class ImageCollection
 {
@@ -340,6 +352,9 @@ function convertImages($imageCollection, $imageOperations)
         print "written $jsonPath\n";
     }
 }
+
+
+
 
 $imageCollection = new ImageCollection;
 $imageOperations = new ImageOperations;
