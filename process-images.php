@@ -1,26 +1,38 @@
 <?php
 
-$config = getConfig();
+error_reporting(E_ALL);
 
+$local_config = getConfig();
+$config = [];
+
+setConfigValue('CACKLING', false);
+setConfigValue('FORCE', false);
+setConfigValue('MODE', 'json-only'); 
+setConfigValue('BASEPATH_ASSETS','./');
+setConfigValue('BASEPATH', './data');
+setConfigValue('SOURCE', '/IIPIMAGES');
+setConfigValue('TARGET', '/dist');
+setConfigValue('JSON_OUTPUT_FN', 'imageData-1.1.json');
+setConfigValue('MAGICK_SLICER_PATH', './libs/MagickSlicer-master/magick-slicer.sh');
+setConfigValue('PATTERN', '*.tif');
 
 // Soll viel in die Console geschrieben werden oder nicht(false);
-define("CACKLING", isset($config['CACKLING']) ? $config['CACKLING'] : false);
+define("CACKLING", $config['CACKLING']);
 
 // Bestehende Bilder überschreiben?
-define("FORCE", isset($config['FORCE']) ? $config['FORCE'] : false);
-
+define("FORCE", $config['FORCE']);
 
 // create-images, json-only, create-images
-define("MODE", isset($config['MODE']) ? $config['MODE'] : 'json-only');
+define("MODE", $config['MODE']);
 
-define("BASEPATH_ASSETS", isset($config['BASEPATH_ASSETS']) ? $config['BASEPATH_ASSETS'] : './');
-define("BASEPATH", isset($config['BASEPATH']) ? $config['BASEPATH'] : './data');
-define("SOURCE", BASEPATH . isset($config['SOURCE']) ? $config['SOURCE'] : '/IIPIMAGES');
-define("TARGET", BASEPATH . isset($config['TARGET']) ? $config['TARGET'] : '/dist-2021');
-define("JSON_OUTPUT_FN", isset($config['JSON_OUTPUT_FN']) ? $config['JSON_OUTPUT_FN'] : 'imageData-1.1.json');
-define("MAGICK_SLICER_PATH", isset($config['MAGICK_SLICER_PATH']) ? $config['MAGICK_SLICER_PATH'] : './libs/MagickSlicer-master/magick-slicer.sh');
+define("BASEPATH_ASSETS", $config['BASEPATH_ASSETS']);
+define("BASEPATH", $config['BASEPATH']);
+define("SOURCE", BASEPATH . $config['SOURCE']);
+define("TARGET", BASEPATH . $config['TARGET']);
+define("JSON_OUTPUT_FN", $config['JSON_OUTPUT_FN']);
+define("MAGICK_SLICER_PATH", $config['MAGICK_SLICER_PATH']);
 
-define("PATTERN", isset($config['PATTERN']) ? $config['PATTERN'] : '*.tif');
+define("PATTERN", $config['PATTERN']);
 
 $paths = array();
 $paths["watermark"] = BASEPATH_ASSETS . "/assets/watermark-shadow.svg";
@@ -64,6 +76,11 @@ function getConfig(){
   if(!file_exists($config_file)) return false;
   $config = file_get_contents($config_file);
   return json_decode($config, true);
+}
+
+function setConfigValue($key, $default_value){
+  global $config, $local_config;
+  $config[$key] = isset($local_config[$key]) ? $local_config[$key] : $default_value;
 }
 
 function getTypeSubfolderName($typeName)
