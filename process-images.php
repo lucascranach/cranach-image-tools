@@ -3,46 +3,38 @@
 error_reporting(E_ALL);
 
 $local_config = getConfig();
-$config = [];
+$config = (object)[];
 
+// Soll viel in die Console geschrieben werden oder nicht(false);
 setConfigValue('CACKLING', false);
+
+// Bestehende Bilder überschreiben?
 setConfigValue('FORCE', false);
+
+// create-images, json-only, create-images
 setConfigValue('MODE', 'json-only'); 
+
+// Pfade und so
 setConfigValue('BASEPATH_ASSETS','./');
 setConfigValue('BASEPATH', './data');
 setConfigValue('SOURCE', '/IIPIMAGES');
 setConfigValue('TARGET', '/dist');
 setConfigValue('JSON_OUTPUT_FN', 'imageData-1.1.json');
 setConfigValue('MAGICK_SLICER_PATH', './libs/MagickSlicer-master/magick-slicer.sh');
+
+// Nach welchem Pattern soll gesucht werden?
 setConfigValue('PATTERN', '*.tif');
 
-// Soll viel in die Console geschrieben werden oder nicht(false);
-define("CACKLING", $config['CACKLING']);
-
-// Bestehende Bilder überschreiben?
-define("FORCE", $config['FORCE']);
-
-// create-images, json-only, create-images
-define("MODE", $config['MODE']);
-
-define("BASEPATH_ASSETS", $config['BASEPATH_ASSETS']);
-define("BASEPATH", $config['BASEPATH']);
-define("SOURCE", BASEPATH . $config['SOURCE']);
-define("TARGET", BASEPATH . $config['TARGET']);
-define("JSON_OUTPUT_FN", $config['JSON_OUTPUT_FN']);
-define("MAGICK_SLICER_PATH", $config['MAGICK_SLICER_PATH']);
-
-define("PATTERN", $config['PATTERN']);
 
 $paths = array();
-$paths["watermark"] = BASEPATH_ASSETS . "/assets/watermark-shadow.svg";
-$paths["tempFolder"] = BASEPATH_ASSETS . "/tmp";
+$paths["watermark"] = $config->BASEPATH_ASSETS . "/assets/watermark-shadow.svg";
+$paths["tempFolder"] = $config->BASEPATH_ASSETS . "/tmp";
 $paths["watermark-temp"] = $paths["tempFolder"] . "/watermark-tmp.png";
-define("PATHS", $paths);
+$config->PATHS = $paths;
 
 $dimensions = array();
 $dimensions["qualityDefault"] = 100;
-define("DIMENSIONS", $dimensions);
+$config->DIMENSIONS = $dimensions;
 
 $recipes = array();
 $recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
@@ -52,7 +44,7 @@ $recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sha
 #$recipes["xlarge"] = '{ "suffix": "xl",     "width": "1800", "quality": 85, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
 $recipes["tiles"]  = '{ "format": "dzi"}';
-define("RECIPES", $recipes);
+$config->RECIPES = $recipes;
 
 $types = array();
 $types["overall"] = '{ "fragment":"Overall", "sort": "01" }';
@@ -69,18 +61,22 @@ $types["rkd"] = '{ "fragment":"RKD", "sort": "11" }';
 $types["koe"] = '{ "fragment":"KOE", "sort": "12" }';
 $types["reflected-light"] = '{ "fragment":"Reflected-light", "sort": "13" }';
 $types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "14" }';
-define("TYPES", $types);
+$config->TYPES = $types;
+
+
+/* Functions
+############################################################################ */
 
 function getConfig(){
   $config_file = './image-tools.config';
   if(!file_exists($config_file)) return false;
   $config = file_get_contents($config_file);
-  return json_decode($config, true);
+  return json_decode(trim($config));
 }
 
 function setConfigValue($key, $default_value){
   global $config, $local_config;
-  $config[$key] = isset($local_config[$key]) ? $local_config[$key] : $default_value;
+  $config->$key = isset($local_config->$key) ? $local_config->$key : $default_value;
 }
 
 function getTypeSubfolderName($typeName)
@@ -101,13 +97,14 @@ class ImageCollection
 
     public $images = array();
 
-    public function __construct()
+    public function __construct($config)
     {
+      $this->config = $config;
 
-        $cmd = "find " . SOURCE . " -name '" . PATTERN . "' "; // -mtime -120
+        $cmd = "find " . $this->config->SOURCE . " -name '" . $this->config->PATTERN . "' "; // -mtime -120
         exec($cmd, $files);
 
-        $pattern = "=" . SOURCE . "=";
+        $pattern = "=" . $this->config->SOURCE . "=";
         $files = preg_replace($pattern, "", $files);
 
         $assets = array();
@@ -118,7 +115,7 @@ class ImageCollection
         foreach (array_keys($assets) as $assetBasePath) {
             $res = array("name" => $assetBasePath);
 
-            foreach (TYPES as $typeName => $typeData) {
+            foreach ($this->config->TYPES as $typeName => $typeData) {
                 $typePattern = getTypeSubfolderName($typeName);
                 $filenamePattern = getTypeFilenamePattern($typeName);
                 $searchPattern = (isset($filenamePattern)) ? $typePattern . "/" . $filenamePattern : $typePattern;
@@ -142,9 +139,10 @@ class ImageCollection
 
 class ImageBundle
 {
-    public function __construct()
+    public function __construct($config)
     {
         $this->imageStack = [];
+        $this->config = $config;
     }
 
     public function addSubStack($type)
@@ -160,22 +158,22 @@ class ImageBundle
 
 class ImageOperations
 {
-    public function __construct()
+    public function __construct($config)
     {
-
+      $this->config = $config;
     }
 
     public function engraveWatermark($target, $targetData, $recipeData)
     {
-        if (CACKLING) {print "engraveWatermark\n";}
-        if (CACKLING) {print " target-> $target\n";}
+        if ($this->config->CACKLING) {print "engraveWatermark\n";}
+        if ($this->config->CACKLING) {print " target-> $target\n";}
 
-        if (MODE === "create-images") {
-            $watermark = PATHS["watermark"];
-            $watermark_temp = PATHS["watermark-temp"];
+        if ($this->config->MODE === "create-images") {
+            $watermark = $this->config->PATHS["watermark"];
+            $watermark_temp = $this->config->PATHS["watermark-temp"];
             $watermark_size = $targetData["dimensions"]["width"] * 0.2;
 
-            if (CACKLING) {print " watermark -> $tempWatermark\n";}
+            if ($this->config->CACKLING) {print " watermark -> $tempWatermark\n";}
             $cmd = "magick convert -background transparent -resize $watermark_size $watermark $watermark_temp && magick composite -compose difference -tile -blend 15 " . $watermark_temp . " " . $target . " " . $target;
             shell_exec($cmd);
 
@@ -185,7 +183,7 @@ class ImageOperations
 
     public function manageTargetPath($image, $recipeTitle, $suffix = false, $typeName)
     {
-        $target = TARGET . $image;
+        $target = $this->config->TARGET . $image;
         $targetPath = $this->getDirectoryFromPath($target);
         $targetFile = $this->getFilenameFromPath($target);
         $typeFolder = getTypeSubfolderName($typeName);
@@ -195,7 +193,7 @@ class ImageOperations
             $targetFile = $res[1] . "-" . $suffix . "." . $res[2];
         }
 
-        $targetPath = BASEPATH . $this->checkPathSegements($targetPath);
+        $targetPath = $this->config->BASEPATH . $this->checkPathSegements($targetPath);
         $pattern = '/'.$typeFolder.'\//';
         $targetPath = (preg_match($pattern, $targetPath)) ? $targetPath : $targetPath . $typeFolder;
         if (!is_dir($targetPath)) {mkdir($targetPath);}
@@ -205,7 +203,7 @@ class ImageOperations
 
     public function processImage($image, $recipeTitle, $recipeData, &$imageBundle, $typeName)
     {
-        if (CACKLING) {print "processImage: $image\n";}
+        if ($this->config->CACKLING) {print "processImage: $image\n";}
 
         $source = preg_quote(SOURCE . $image);
         $target = $this->manageTargetPath($image, $recipeTitle, $recipeData->suffix, $typeName);
@@ -244,14 +242,14 @@ class ImageOperations
     {
 
         $sharpen = (isset($data->sharpen)) ? $data->sharpen : false;
-        $quality = (isset($data->quality)) ? $data->quality : DIMENSIONS["qualityDefault"];
-        $width = (isset($data->width)) ? $data->width : DIMENSIONS["imageWidth"];
-        $height = (isset($data->height)) ? $data->height : DIMENSIONS["imageWidth"];
+        $quality = (isset($data->quality)) ? $data->quality : $this->config->DIMENSIONS["qualityDefault"];
+        $width = (isset($data->width)) ? $data->width : $this->config->DIMENSIONS["imageWidth"];
+        $height = (isset($data->height)) ? $data->height : $this->config->DIMENSIONS["imageWidth"];
         $metadata = (isset($data->metadata)) ? $data->metadata : false;
         $imageBundle["maxDimensions"] = $this->getDimensions($source);
 
         $source .= "[0]";
-        if (MODE === "create-images") {
+        if ($this->config->MODE === "create-images") {
             $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
             $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
             $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
@@ -289,13 +287,13 @@ class ImageOperations
 
     public function createDirectory($targetPath)
     {
-        $targetPath = BASEPATH . $targetPath;
+        $targetPath = $this->config->BASEPATH . $targetPath;
         mkdir($targetPath, 0775);
     }
 
     public function checkPathSegements($path)
     {
-        $pattern = "=" . BASEPATH . "=";
+        $pattern = "=" . $this->config->BASEPATH . "=";
         $workingPath = preg_replace($pattern, "", $path);
         $pathSegments = explode("/", $workingPath);
 
@@ -329,14 +327,14 @@ function convertImages($imageCollection, $imageOperations)
 
         print "\nAsset $count from $stackSize // $assetName:";
         $imageBundle = new ImageBundle;
-        $jsonPath = TARGET . "/$assetName/" . JSON_OUTPUT_FN;
+        $jsonPath = $this->config->TARGET . "/$assetName/" . JSON_OUTPUT_FN;
 
-        if (file_exists($jsonPath) && !FORCE ) {
+        if (file_exists($jsonPath) && !$this->config->FORCE ) {
             print "… already exists :)";
             continue;
         }
 
-        foreach (TYPES as $typeName => $typeData) {
+        foreach ($this->config->TYPES as $typeName => $typeData) {
             $imageBundle->addSubStack($typeName);
             foreach ($assetData[$typeName] as $image) {
                 $assetImages = array();
@@ -344,7 +342,7 @@ function convertImages($imageCollection, $imageOperations)
                 sort($recipeTitles);
                 foreach ($recipeTitles as $recipeTitle) {
                     print ".";
-                    $recipe = RECIPES[$recipeTitle];
+                    $recipe = $this->config->RECIPES[$recipeTitle];
                     $recipeData = json_decode($recipe);
                     $typeFolder = getTypeSubfolderName($typeName);
                     $imageData = $imageOperations->processImage($image, $recipeTitle, $recipeData, $imageBundle->imageStack[$typeName], $typeName);
@@ -371,9 +369,10 @@ function convertImages($imageCollection, $imageOperations)
 }
 
 
+/* Main
+############################################################################ */
 
-
-$imageCollection = new ImageCollection;
-$imageOperations = new ImageOperations;
+$imageCollection = new ImageCollection($config);
+$imageOperations = new ImageOperations($config);
 
 convertImages($imageCollection, $imageOperations);
