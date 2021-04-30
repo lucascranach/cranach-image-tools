@@ -2,6 +2,14 @@
 
 error_reporting(E_ALL);
 
+/* Config
+   !!! ACHTUNG: hier stehen die DEFAULT Werte. Custom Werte bitte 
+   in der image-tools.config angeben. 
+
+   ########################################################################  */
+
+   # AA_, AR_, AT_, AU_, BE_, BR_, CA_, CDN_, CH_, CU_, CZ_, DE_, DK_, E, F
+
 $local_config = getConfig();
 $config = (object)[];
 
@@ -12,7 +20,7 @@ setConfigValue('CACKLING', false);
 setConfigValue('FORCE', false);
 
 // create-images, json-only, create-images
-setConfigValue('MODE', 'json-only'); 
+setConfigValue('MODE', 'create-images'); 
 
 // Pfade und so
 setConfigValue('BASEPATH_ASSETS','./');
@@ -22,6 +30,7 @@ setConfigValue('TARGET', '/dist');
 setConfigValue('JSON_OUTPUT_FN', 'imageData-1.1.json');
 setConfigValue('MAGICK_SLICER_PATH', './libs/MagickSlicer-master/magick-slicer.sh');
 setConfigValue('MAGICK_COMMAND', 'magick convert');
+setConfigValue('CHOWN', 'www:www');
 
 
 // Nach welchem Pattern soll gesucht werden?
@@ -192,15 +201,20 @@ class ImageOperations
             $cmd = $this->config->MAGICK_COMMAND . " convert -background transparent -resize $watermark_size $watermark $watermark_temp && ".$this->config->MAGICK_COMMAND." composite -compose difference -tile -blend 15 " . $watermark_temp . " " . $target . " " . $target;
 
             shell_exec($cmd);
+            chmod($target, 0755);
 
+            $cmd = 'chown ' . $this->config->CHOWN . ' ' . $target;
+            shell_exec($cmd);
         }
         return $target;
     }
 
     public function generateTiles( $recipeData, $targetData){
 
-      $source = $this->config->TARGET . $targetData['path'] . '/'. $targetData['basefilename'] .'-' . $recipeData->suffix . ".jpg";
-      $target = $this->config->TARGET . $targetData['path'] . '/'. $targetData['basefilename'];
+      $path = preg_replace("=pyramid=", "", $targetData['path']);
+      
+      $source = $this->config->TARGET . $path . '/'. $targetData['basefilename'] .'-' . $recipeData->suffix . ".jpg";
+      $target = $this->config->TARGET . $path . '/'. $targetData['basefilename'];
       $dzi = $target . '.dzi';
 
       if(file_exists($target . '.dzi')){
@@ -208,6 +222,13 @@ class ImageOperations
         return;
       }
       $cmd = 'vips dzsave ' . $source .' ' . $target .' --suffix .jpg[Q=95]';
+      shell_exec($cmd);
+      chmod($target.'.dzi', 0755);
+
+      $cmd = 'chmod -R 755 '.$target . '_files';
+      shell_exec($cmd);
+
+      $cmd = 'chown -R ' . $this->config->CHOWN . ' ' . $target . '_files';
       shell_exec($cmd);
     }
 
@@ -291,6 +312,10 @@ class ImageOperations
             $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
             $cmd = "convert -interlace plane -quiet $handleMetadata -strip -quality $quality " . $resize . " $sharpen $source $target";
 
+            shell_exec($cmd);
+            chmod($target, 0755);
+
+            $cmd = 'chown ' . $this->config->CHOWN . ' ' . $target;
             shell_exec($cmd);
         }
 
@@ -379,11 +404,11 @@ function convertImages($imageCollection, $imageOperations, $config)
                 $recipeTitles = array_keys($config->RECIPES);
                 sort($recipeTitles);
                 foreach ($recipeTitles as $recipeTitle) {
-                    print ".";
                     $recipe = $config->RECIPES[$recipeTitle];
                     $recipeData = json_decode($recipe);
                     $typeFolder = getTypeSubfolderName($typeName);
                     $imageData = $imageOperations->processImage($image, $recipeTitle, $recipeData, $imageBundle->imageStack[$typeName], $typeName);
+                    print $imageData['src']. "\n";
                     if($imageData === "skip"){
                       print "Skip $image\n"; continue;
                     }
