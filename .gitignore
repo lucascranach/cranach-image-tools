@@ -1,4 +1,5 @@
 create-watermarks/images/
 images/
 tmp/
+cache/
 image-tools.config
