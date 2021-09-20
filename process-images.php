@@ -17,10 +17,10 @@ $config = (object)[];
 setConfigValue('CACKLING', false);
 
 // Bestehende Bilder überschreiben?
-setConfigValue('FORCE', false);
+setConfigValue('FORCE', true);
 
-// create-images, json-only, create-images
-setConfigValue('MODE', 'create-images'); 
+// create-images, json-only, dzi-only
+setConfigValue('MODE', 'dzi-only'); 
 
 // Pfade und so
 setConfigValue('BASEPATH_ASSETS','./');
@@ -30,16 +30,17 @@ setConfigValue('TARGET', '/dist');
 setConfigValue('JSON_OUTPUT_FN', 'imageData-1.1.json');
 setConfigValue('MAGICK_SLICER_PATH', './libs/MagickSlicer-master/magick-slicer.sh');
 setConfigValue('MAGICK_COMMAND', 'magick convert');
-setConfigValue('CHOWN', 'www:www');
 
 
 // Nach welchem Pattern soll gesucht werden?
 setConfigValue('PATTERN', '*.tif');
 
 $paths = array();
-$paths["watermark"] = $config->BASEPATH_ASSETS . "/assets/watermark-shadow.svg";
+$paths["font"] = $config->BASEPATH_ASSETS . "/assets/IBMPlexSans-Bold.ttf";
+$paths["watermark"] = $config->BASEPATH_ASSETS . "/assets/watermark-bw.svg";
 $paths["tempFolder"] = $config->BASEPATH_ASSETS . "/tmp";
-$paths["watermark-temp"] = $paths["tempFolder"] . "/watermark-tmp.png";
+$paths["watermark-temp"] = $paths["tempFolder"] . "/watermark-bw.png";
+$paths["watermark-dynamic"] = $paths["tempFolder"] . "/watermark-dynamic.png";
 $config->PATHS = $paths;
 
 $dimensions = array();
@@ -70,8 +71,7 @@ $types["other"] = '{ "fragment":"Other", "sort": "09" }';
 $types["analysis"] = '{ "fragment":"Analysis", "sort": "10" }';
 $types["rkd"] = '{ "fragment":"RKD", "sort": "11" }';
 $types["koe"] = '{ "fragment":"KOE", "sort": "12" }';
-$types["reflected-light"] = '{ "fragment":"Reflected-light", "sort": "13" }';
-$types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "14" }';
+$types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "13" }';
 $config->TYPES = $types;
 
 
@@ -104,6 +104,12 @@ function getTypeFilenamePattern($typeName)
     return (isset($typeDataJSON->fn_pattern)) ? $typeDataJSON->fn_pattern : "";
 }
 
+function addLogEntry($entryData){
+  $logfile=fopen("logfile.txt","a");
+  fputs($logfile, "$entryData\n");
+  fclose($logfile);
+}
+
 
 class ImageCollection
 {
@@ -115,6 +121,7 @@ class ImageCollection
       $this->config = $config;
 
         $cmd = "find " . $this->config->SOURCE . " -name '" . $this->config->PATTERN . "' "; // -mtime -120
+
         exec($cmd, $this->files);
         $this->sortFiles();
 
@@ -134,21 +141,31 @@ class ImageCollection
                 $filenamePattern = getTypeFilenamePattern($typeName);
                 $searchPattern = (isset($filenamePattern)) ? $typePattern . "/" . $filenamePattern : $typePattern;
                 $typeFiles = preg_grep("=/$assetBasePath/$searchPattern=", $this->files);
+                if($this->config->MODE === "only-dzi-files"){
+                  $typeFiles = preg_grep("=$searchPattern=", $this->files);
+                }
                 $res["data"][$typeName] = $typeFiles;
             }
             array_push($this->images, $res);
         }
+
     }
 
     public function sortFiles(){
-      
-      $images_with_trailing_chars = preg_grep("=[a-zA-Z]\.tif$=", $this->files);
-      $images_with_trailing_numbers = preg_grep("=[0-9]\.tif$=", $this->files);
-      
+
+      $images_with_trailing_chars = preg_grep("=[a-zA-Z]\.(tif|jpg)$=", $this->files);
+      $images_with_trailing_numbers = preg_grep("=[0-9]\.(tif|jpg)$=", $this->files);
+
+      if($this->config->MODE === 'only-dzi-files') {
+        $images_with_trailing_chars = preg_grep("=[a-zA-Z]-origin\.jpg$=", $this->files);
+        $images_with_trailing_numbers = preg_grep("=[0-9]-origin\.jpg$=", $this->files);
+      }
+
       sort($images_with_trailing_chars);
       sort($images_with_trailing_numbers);
       
       $this->files = array_merge($images_with_trailing_chars, $images_with_trailing_numbers);
+
     }
 
     public function getSize()
@@ -187,6 +204,34 @@ class ImageOperations
       $this->config = $config;
     }
 
+    private function createWatermark($dimensions){
+      $dynamic_watermark = $this->config->PATHS["watermark-dynamic"];
+
+      $font = $this->config->PATHS["font"];
+      $width = $dimensions['width']/4;
+      $height = $dimensions['height']/4;
+      $ammount = 30;
+      $bfs = $width/ 100;
+
+      $watermarkdata = [];
+      for( $i = 0; $i < $ammount; $i++){
+        $pointsize = rand($bfs, $bfs * 5);
+        $max_width = $width - ($pointsize *6);
+        $x = rand(0, $max_width);
+        $max_height = $height - ($pointsize *2);
+        $y = rand(0, $max_height);
+        $color = rand(0,1) === 1 ? 'fff' : '000';
+        $opacity = rand(2,5);
+
+        array_push($watermarkdata, " -pointsize $pointsize  -fill '#$color$opacity' -annotate +$x+$y 'cda_'");
+      }
+
+      //$cmd = "convert -size ".$width."x$height xc:transparent -font $font -pointsize 30 -fill '#0002' -annotate +10+10 'cda_' -pointsize 30 -fill '#0002' -annotate +210+110 'cda_' $temp_watermark";
+      $cmd = "convert -size ".$width."x$height xc:transparent -font $font ".implode(' ', $watermarkdata)." $dynamic_watermark";
+      shell_exec($cmd);
+
+    }
+
     public function engraveWatermark($target, $targetData, $recipeData)
     {
         if ($this->config->CACKLING) {print "engraveWatermark\n";}
@@ -194,17 +239,18 @@ class ImageOperations
 
         if ($this->config->MODE === "create-images") {
             $watermark = $this->config->PATHS["watermark"];
-            $watermark_temp = $this->config->PATHS["watermark-temp"];
-            $watermark_size = $targetData["dimensions"]["width"] * 0.2;
+            // $watermark_temp = $this->config->PATHS["watermark-temp"];
+            $dynamic_watermark = $this->config->PATHS["watermark-dynamic"];
 
-            if ($this->config->CACKLING) {print " watermark -> $tempWatermark\n";}
-            $cmd = $this->config->MAGICK_COMMAND . " convert -background transparent -resize $watermark_size $watermark $watermark_temp && ".$this->config->MAGICK_COMMAND." composite -compose difference -tile -blend 15 " . $watermark_temp . " " . $target . " " . $target;
+            if ($this->config->CACKLING) {print " watermark -> $dynamic_watermark\n";}
+            $this->createWatermark($targetData["dimensions"]);
+
+            $watermark_size = $targetData["dimensions"]["width"] * 0.5;
+            $cmd = $this->config->MAGICK_COMMAND . " convert -background transparent -resize $watermark_size $dynamic_watermark $dynamic_watermark && ".$this->config->MAGICK_COMMAND." composite -compose difference -tile -blend 50 " . $dynamic_watermark . " " . $target . " " . $target;
 
             shell_exec($cmd);
             chmod($target, 0755);
 
-            $cmd = 'chown ' . $this->config->CHOWN . ' ' . $target;
-            shell_exec($cmd);
         }
         return $target;
     }
@@ -216,7 +262,14 @@ class ImageOperations
       $source = $this->config->TARGET . $path . '/'. $targetData['basefilename'] .'-' . $recipeData->suffix . ".jpg";
       $target = $this->config->TARGET . $path . '/'. $targetData['basefilename'];
       $dzi = $target . '.dzi';
+      $files = $target .'_files';
+      
 
+      if(file_exists($files)){
+        $cmd = 'rm -Rf ' . $files;
+        shell_exec($cmd);
+      }
+      
       if(file_exists($target . '.dzi')){
         echo "Skip ". $target . '.dzi' . " already exists.\n";
         return;
@@ -226,9 +279,6 @@ class ImageOperations
       chmod($target.'.dzi', 0755);
 
       $cmd = 'chmod -R 755 '.$target . '_files';
-      shell_exec($cmd);
-
-      $cmd = 'chown -R ' . $this->config->CHOWN . ' ' . $target . '_files';
       shell_exec($cmd);
     }
 
@@ -314,9 +364,6 @@ class ImageOperations
 
             shell_exec($cmd);
             chmod($target, 0755);
-
-            $cmd = 'chown ' . $this->config->CHOWN . ' ' . $target;
-            shell_exec($cmd);
         }
 
         preg_match("=.*/(.*?)$=", $target, $res);
@@ -386,23 +433,30 @@ function convertImages($imageCollection, $imageOperations, $config)
         $assetName = $asset["name"];
         $assetData = $asset["data"];
         $count++;
-
+        
         print "\nAsset $count from $stackSize // $assetName:";
         $imageBundle = new ImageBundle;
         $jsonPath = $config->TARGET . "/$assetName/" . $config->JSON_OUTPUT_FN;
 
-        if (file_exists($jsonPath) && !$config->FORCE ) {
+        if (file_exists($jsonPath) && !($config->FORCE || $config->MODE === "dzi-only")) {
             print "… already exists :)";
             continue;
         }
 
+        if($config->MODE === "dzi-only"){
+          $recipes = [];
+          $recipes["tiles"] = $config->RECIPES["tiles"];
+          $config->RECIPES = $recipes;
+        }
+        
         foreach ($config->TYPES as $typeName => $typeData) {
             $imageBundle->addSubStack($typeName);
-                        
+                                    
             foreach ($assetData[$typeName] as $image) {            
                 $assetImages = array();
                 $recipeTitles = array_keys($config->RECIPES);
                 sort($recipeTitles);
+                
                 foreach ($recipeTitles as $recipeTitle) {
                     $recipe = $config->RECIPES[$recipeTitle];
                     $recipeData = json_decode($recipe);
@@ -426,14 +480,21 @@ function convertImages($imageCollection, $imageOperations, $config)
             }
         }
         // $imageBundle->flattenRepresentative();
-        file_put_contents($jsonPath, json_encode($imageBundle));
-        print "written $jsonPath\n";
+        if($config->MODE !== "only-dzi-files"){
+          file_put_contents($jsonPath, json_encode($imageBundle));
+          print "written $jsonPath\n";
+        }
+
+        addLogEntry($assetName);
     }
 }
 
 
 /* Main
 ############################################################################ */
+
+$newSession = "\n#######################################################\n" . date("d.m.Y, H:i:s",time());
+addLogEntry($newSession);
 
 $imageCollection = new ImageCollection($config);
 $imageOperations = new ImageOperations($config);

@@ -12,6 +12,7 @@ class ImageBrowser
       $this->from = 0;
       $this->size = $this->config->SIZE;
       $this->path = $this->getPath();
+      $this->action = $this->getAction();
       $this->cleanPath = $this->getPath("clean");
       $this->subDirs = $this->getSubDirs();
       $this->images = $this->getFiles($this->config->SEARCH_PATTERNS->IMAGES);
@@ -53,6 +54,11 @@ class ImageBrowser
     private function cleanPath($path){
       $pattern = $this->config->SERVER_ROOT;
       return preg_replace('='.$pattern.'/=', "", $path);
+    }
+
+    private function getAction(){
+      $action = isset($_GET["action"]) ? $_GET["action"] : false;
+      return $action;
     }
 
     private function getPath($mode = false){
@@ -170,11 +176,30 @@ class ImageBrowser
       print json_encode($res); 
       exit;
     }
+
+
+    public function getZip(){
+      $cache = $this->cache;
+      $source = $this->path;
+      $target = $cache . '/' . $this->cleanPath . '.zip';
+      $filename = $this->cleanPath . '.zip';
+      $cmd = "zip -r $target $source";
+      exec($cmd, $ret);
+
+      // Download the created zip file
+      header('Content-type: application/zip');
+      header("Content-Disposition: attachment; filename = $filename");
+      readfile("$target");
+      exit;
+    }
 }
 
 $browser = new ImageBrowser($config);
 if(preg_match("=jpg$=", $browser->cleanPath)){
   $browser->respondITPC();
   exit;
+}
+if($browser->action === 'download'){
+  $browser->getZip();
 }
 $browser->responseData();
