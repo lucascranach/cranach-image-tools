@@ -7,6 +7,7 @@ class ImageBrowser
     public function __construct($config)
     {
       $this->config = $config;
+      $this->cacheIsActive = false;
       $this->cache = $this->config->CACHEDIR;
       $this->level = 0;
       $this->from = 0;
@@ -21,8 +22,9 @@ class ImageBrowser
     }
 
     private function getCachedFile($id){
+      
       $fn = $this->cache.'/'.$id;
-      return file_exists($fn) ? json_decode(file_get_contents($fn)) : false;
+      return (file_exists($fn) && ($this->cacheIsActive === true)) ? json_decode(file_get_contents($fn)) : false;
     }
 
     private function cacheFile($id, $data){
