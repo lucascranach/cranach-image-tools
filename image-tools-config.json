@@ -1,26 +1,26 @@
 {
-  "pathAssets": "/home/cnoss/cranach-image-tools",
-  "cachePath": "/home/cnoss/cranach-image-tools/cache",
+  "pathAssets": "/Users/cnoss/git/lucascranach/image-tools",
+  "cachePath": "/Users/cnoss/git/lucascranach/image-tools/cache",
   "tileSize": 300,
   "magickCommand": "",
   "chown": "cnoss:www",
   "defaultPeriod": "-5000",
   "unconvertedImageParams": {
     "paintings": {
-      "path": "/home/mkpacc/IIPIMAGES",
+      "path": "/Volumes/Elements/cranach-data/IIPIMAGES",
       "pattern": ".*tif$|.*tiff$|.*TIF$|.*TIFF$"
     },
     "graphics": false
   },
   "preparedImageParams": {
     "paintings": {
-      "path": "/home/mkpacc/RAW_TESTDATA",
+      "path": "/Volumes/Elements/cranach-data/RAW_PAINTINGS",
       "pattern": "*.png"
     },
     "graphics": {
-      "path": "/home/mkpacc/RAW_GRAPHICS",
+      "path": "/Volumes/Elements/cranach-data/RAW_GRAPHICS",
       "pattern": "*.jpg"
     }
   },
-  "targetPath": "/home/mkpacc/imageserver-data-hiResTest"
+  "targetPath": "/Volumes/Elements/cranach-data/imageserver-data-hiRes"
 }
