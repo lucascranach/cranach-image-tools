@@ -523,12 +523,11 @@ function createRawImages($imageType, $config)
 
         switch ($imageType) {
             case "paintings":
-                $pattern = preg_replace("=\|=", "\|", $config->LOCALCONFIG->unconvertedImageParams->paintings->pattern);
-
+                
                 return [
                     "source" => $config->LOCALCONFIG->unconvertedImageParams->paintings->path,
                     "target" => $config->LOCALCONFIG->preparedImageParams->paintings->path,
-                    "suffixPattern" => $pattern,
+                    "searchPattern" => '\( -name  \*.tif -o -name \*.tiff -o -name \*.TIF -o -name \*.TIFF \)',
                 ];
                 break;
         }
@@ -548,6 +547,9 @@ function createRawImages($imageType, $config)
         return;
     }
 
+    $loggingPath = $config->PATHS["rawLog"];
+    if(file_exists($loggingPath)){ unlink($loggingPath); }
+
     print "----------\n";
     print "Raw Version erzeugen von: $imageType\n";
 
@@ -555,23 +557,27 @@ function createRawImages($imageType, $config)
     $params = getParamsForRawConvertion($imageType, $config);
 
     $startDirectory = isset($cliOptions["dir"]) ? $params['source'] . "/" . $cliOptions["dir"] : $params['source'];
-    $cmd = "find $startDirectory " . " -regex '" . $params['suffixPattern'] . "' ";
-    print "$cmd\n";
+    $cmd = "find $startDirectory " . $params['searchPattern'];
     exec($cmd, $files);
 
     $files = removePyramidDoubles($files, $config);
 
     print "Es werden " . sizeof($files) . " bearbeitet …\n";
 
+    $count = 1;
     foreach ($files as $file) {
         $pathWithoutPyramid = preg_replace("=pyramid/=", "", $file);
         $pattern = "=" . $params['source'] . "=";
         $target = preg_replace($pattern, $params['target'], $pathWithoutPyramid);
-        
-        $suffixPattern = "=" . $params["suffixPattern"] . "=";        
-        $suffixPattern = preg_replace("=\\\=", "", $suffixPattern);
-        $suffixPattern = preg_replace("=\\.=", "\.", $suffixPattern);
-        $target = preg_replace($suffixPattern, ".png", $target);
+        $target = preg_replace("=\..*?$=", ".png", $target);
+
+        print "$count von " . sizeof($files) . "\n";
+        $count ++;
+
+        if(file_exists($target)){
+          print "Datei existiert bereits\n";
+          continue;
+        }
 
         createRecursiveFolder($target);
         $cmd = "convert $file $target";
@@ -579,6 +585,8 @@ function createRawImages($imageType, $config)
         
         exec($cmd);
         cleanUpPyramidTiffs($target);
+
+        file_put_contents($loggingPath, "$file\n", FILE_APPEND);
     }
 
 }
