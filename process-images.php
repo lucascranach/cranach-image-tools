@@ -90,7 +90,7 @@ class ImageCollection
     public function __construct($params)
     {
         $this->params = $params;
-        $cmd = "find " . $this->params["source"] . " -maxdepth 5 -mtime " . $this->params["period"] . " -name '" . $this->params["pattern"] . "' ";
+        $cmd = "find " . $this->params["source"] . " -maxdepth 6 -mtime " . $this->params["period"] . " -name '" . $this->params["pattern"] . "' ";
         exec($cmd, $this->images);
     }
 
