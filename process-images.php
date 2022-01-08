@@ -166,55 +166,60 @@ class ImageOperations
         $this->params = $params;
     }
 
-    private function map($value, $valueRangeStart, $valueRangeEnd, $newRangeStart, $newRangeEnd) {
-      return $newRangeStart + ($newRangeEnd - $newRangeStart) * (($value - $valueRangeStart) / ($valueRangeEnd - $valueRangeStart));
+    private function map($value, $valueRangeStart, $valueRangeEnd, $newRangeStart, $newRangeEnd)
+    {
+        return $newRangeStart + ($newRangeEnd - $newRangeStart) * (($value - $valueRangeStart) / ($valueRangeEnd - $valueRangeStart));
     }
 
-    private function getColorMap($source, $cols, $rows){
+    private function getColorMap($source, $cols, $rows)
+    {
 
-      $mapCols = $cols;
-      $mapRows = $rows;
+        $mapCols = $cols;
+        $mapRows = $rows;
 
-      $colorMapPath = $this->config->PATHS["colormap"];
+        $colorMapPath = $this->config->PATHS["colormap"];
 
-      $cmd = "convert -resize " . $mapCols. "x$mapRows -set colorspace sRGB $source txt:";
-      exec($cmd, $data);
+        $cmd = "convert -resize " . $mapCols . "x$mapRows -set colorspace sRGB $source txt:";
+        exec($cmd, $data);
 
-      // $cmd = "convert -resize " . $mapCols. "x$mapRows -colorspace Gray $source $colorMapPath";
-      // exec($cmd);
+        // $cmd = "convert -resize " . $mapCols. "x$mapRows -colorspace Gray $source $colorMapPath";
+        // exec($cmd);
 
-      $map = [];
-      foreach($data as $row){
-        preg_match("=(.*?),(.*?):.*\((.*?)\,(.*?)\,(.*?)\,=", $row, $res);
-        if(!isset($res[1])) continue;
-        $x = intval($res[1]);
-        $y = intval($res[2]);
-        $r = intval($res[3]);
-        $g = intval($res[4]);
-        $b = intval($res[5]);
-        //$lightness = floor($this->map(intval($res[3]), 6, 170, 0, 255));
-        $map[$x][$y] = [
-          "color" => "$r, $g, $b",
-          "lightnessRaw" => $res[3],
-          "row" => $row,
+        $map = [];
+        foreach ($data as $row) {
+            preg_match("=(.*?),(.*?):.*\((.*?)\,(.*?)\,(.*?)\,=", $row, $res);
+            if (!isset($res[1])) {
+                continue;
+            }
 
-        ];
-      }
+            $x = intval($res[1]);
+            $y = intval($res[2]);
+            $r = intval($res[3]);
+            $g = intval($res[4]);
+            $b = intval($res[5]);
+            //$lightness = floor($this->map(intval($res[3]), 6, 170, 0, 255));
+            $map[$x][$y] = [
+                "color" => "$r, $g, $b",
+                "lightnessRaw" => $res[3],
+                "row" => $row,
 
-      return $map;
+            ];
+        }
+
+        return $map;
     }
 
     private function createWatermarkData($source)
     {
-        
+
         $dynamic_watermark = $this->config->PATHS["watermark-dynamic"];
         $font = $this->config->PATHS["font"];
-        
+
         $dimensions = $this->getDimensions($source);
         $width = $dimensions['width'];
         $height = $dimensions['height'];
         $tileSize = $this->config->LOCALCONFIG->tileSize;
-        
+
         $cols = floor($width / $tileSize);
         $rows = floor($height / $tileSize);
 
@@ -225,23 +230,29 @@ class ImageOperations
         $lightnessSplitPoint = 122;
 
         for ($col = 0; $col < $cols; $col++) {
-          for ($row = 0; $row < $rows; $row++) {
-            $skip = rand(0,10);
-            if($skip > 8) continue;
-            $pointsize = rand($baseFontSize*2, $baseFontSize * 5);
-            $opacity = rand(2, 5) / 10;
-            
-            $xRand = rand(0, $tileSize/4);
-            $x = ($col * $tileSize) + $xRand;
-            $yRand = rand(0, $tileSize/2);
-            $y = ($row * $tileSize) + $pointsize + $yRand;
-            if(!isset($colorMap[$col][$row])) continue;
-            $color =  $colorMap[$col][$row]["color"];
-            array_push($watermarkdata, " -pointsize $pointsize -fill 'rgba($color, $opacity)' -annotate +$x+$y 'cda_'");
-          }
+            for ($row = 0; $row < $rows; $row++) {
+                $skip = rand(0, 10);
+                if ($skip > 8) {
+                    continue;
+                }
+
+                $pointsize = rand($baseFontSize * 2, $baseFontSize * 5);
+                $opacity = rand(2, 5) / 10;
+
+                $xRand = rand(0, $tileSize / 4);
+                $x = ($col * $tileSize) + $xRand;
+                $yRand = rand(0, $tileSize / 2);
+                $y = ($row * $tileSize) + $pointsize + $yRand;
+                if (!isset($colorMap[$col][$row])) {
+                    continue;
+                }
+
+                $color = $colorMap[$col][$row]["color"];
+                array_push($watermarkdata, " -pointsize $pointsize -fill 'rgba($color, $opacity)' -annotate +$x+$y 'cda_'");
+            }
         }
 
-        return  "-font $font " . implode(' ', $watermarkdata);
+        return "-font $font " . implode(' ', $watermarkdata);
     }
 
     public function generateTiles($recipeData, $targetData)
@@ -289,7 +300,7 @@ class ImageOperations
         $source = $image;
         $target = $this->manageTargetPath($source, $recipeData);
         createRecursiveFolder($target);
-        
+
         $watermarkData = isset($recipeData->watermark) ? $this->createWatermarkData($source, $target) : false;
         $this->resizeImage($source, $target, $recipeData, $watermarkData);
 
@@ -321,7 +332,7 @@ class ImageOperations
         $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
         $cmd = "convert -interlace plane -quiet $handleMetadata $watermarkData -strip -quality $quality " . $resize . " $sharpen $source $target";
         shell_exec($cmd);
-        
+
         // chmod($target, 0755);
 
         return true;
@@ -523,10 +534,19 @@ function createRawImages($imageType, $config)
 
         switch ($imageType) {
             case "paintings":
-                
+
                 return [
                     "source" => $config->LOCALCONFIG->unconvertedImageParams->paintings->path,
                     "target" => $config->LOCALCONFIG->preparedImageParams->paintings->path,
+                    "searchPattern" => '\( -name  \*.tif -o -name \*.tiff -o -name \*.TIF -o -name \*.TIFF \)',
+                ];
+                break;
+
+            case "graphics":
+
+                return [
+                    "source" => $config->LOCALCONFIG->unconvertedImageParams->graphics->path,
+                    "target" => $config->LOCALCONFIG->preparedImageParams->graphics->path,
                     "searchPattern" => '\( -name  \*.tif -o -name \*.tiff -o -name \*.TIF -o -name \*.TIFF \)',
                 ];
                 break;
@@ -535,6 +555,7 @@ function createRawImages($imageType, $config)
 
     $supportedImageTypes = [
         "paintings",
+        "graphics"
     ];
 
     $pattern = "=$imageType=";
@@ -548,7 +569,7 @@ function createRawImages($imageType, $config)
     }
 
     $loggingPath = $config->PATHS["rawLog"];
-    if(file_exists($loggingPath)){ unlink($loggingPath); }
+    if (file_exists($loggingPath)) {unlink($loggingPath);}
 
     print "----------\n";
     print "Raw Version erzeugen von: $imageType\n";
@@ -572,17 +593,17 @@ function createRawImages($imageType, $config)
         $target = preg_replace("=\..*?$=", ".png", $target);
 
         print "$count von " . sizeof($files) . "\n";
-        $count ++;
+        $count++;
 
-        if(file_exists($target)){
-          print "Datei existiert bereits\n";
-          continue;
+        if (file_exists($target)) {
+            print "Datei existiert bereits\n";
+            continue;
         }
 
         createRecursiveFolder($target);
         $cmd = "convert $file $target";
         print "erzeuge $target\n";
-        
+
         exec($cmd);
         cleanUpPyramidTiffs($target);
 
@@ -651,6 +672,7 @@ function showMainMenu($config)
 
     $actions = [
         "create-raw-paintings" => "Raw Version der Gemälde erzeugen",
+        "create-raw-graphics" => "Raw Version der Grafiken erzeugen",
         "generate-images" => "Derivate erzeugen",
         "remove-target-contents" => "Zielverzeichnis löschen",
         "exit" => "Skript beenden",
@@ -729,6 +751,10 @@ function showMainMenu($config)
 
         case "create-raw-paintings":
             createRawImages('paintings', $config);
+            break;
+
+        case "create-raw-graphics":
+            createRawImages('graphics', $config);
             break;
 
         case "exit":
