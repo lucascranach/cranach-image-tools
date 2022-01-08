@@ -192,7 +192,17 @@ class ImageOperations
         $r = intval($res[3]);
         $g = intval($res[4]);
         $b = intval($res[5]);
-        //$lightness = floor($this->map(intval($res[3]), 6, 170, 0, 255));
+        
+        $reduce = 50;
+        $r = $r > 130 ? $r - $reduce : $r;
+        $g = $g > 130 ? $g - $reduce : $g;
+        $b = $b > 130 ? $b - $reduce : $b;
+
+        $add = 50;
+        $r = $r < 120 ? $r + $add : $r;
+        $g = $g < 120 ? $g + $add : $g;
+        $b = $b < 120 ? $b + $add : $b;
+
         $map[$x][$y] = [
           "color" => "$r, $g, $b",
           "lightnessRaw" => $res[3],
@@ -213,23 +223,32 @@ class ImageOperations
         $dimensions = $this->getDimensions($source);
         $width = $dimensions['width'];
         $height = $dimensions['height'];
-        $tileSize = $this->config->LOCALCONFIG->tileSize;
-        
-        $cols = floor($width / $tileSize);
-        $rows = floor($height / $tileSize);
+
+        if($width >= $height){
+          $ratio = $width / $height;
+          $tileAmount = 4 + floor($width / 3000);
+          $tileSize = round($height / $tileAmount);
+          
+        }else{
+          $ratio = $height / $width;
+          $tileAmount = 4 + floor($height / 3000);
+          $tileSize = round($width / $tileAmount);
+        }
+
+        $cols = round($width / $tileSize);
+        $rows = round($height / $tileSize);
 
         $colorMap = $this->getColorMap($source, $cols, $rows);
 
         $watermarkdata = [];
-        $baseFontSize = $tileSize / 40;
-        $lightnessSplitPoint = 122;
+        $baseFontSize = $tileSize / 30;
 
-        for ($col = 0; $col < $cols; $col++) {
-          for ($row = 0; $row < $rows; $row++) {
+        for ($col = 0; $col <= $cols; $col++) {
+          for ($row = 0; $row <= $rows; $row++) {
             $skip = rand(0,10);
-            if($skip > 8) continue;
-            $pointsize = rand($baseFontSize*2, $baseFontSize * 5);
-            $opacity = rand(2, 5) / 10;
+            if($skip > 7) continue;
+            $pointsize = rand($baseFontSize, $baseFontSize * 5);
+            $opacity = rand(3, 6) / 10;
             
             $xRand = rand(0, $tileSize/4);
             $x = ($col * $tileSize) + $xRand;
