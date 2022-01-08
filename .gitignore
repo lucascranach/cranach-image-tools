@@ -4,3 +4,4 @@ tmp/
 cache/
 image-tools.config
 image-tools-config.json
+logs/
