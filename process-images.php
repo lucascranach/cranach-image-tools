@@ -27,8 +27,8 @@ $config->DIMENSIONS = $dimensions;
 
 $recipes = array();
 # $recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
-# $recipes["small"] = '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
-# $recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["small"] = '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 $recipes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
 # $recipes["tiles"] = '{ "suffix": "origin", "format": "dzi"}';
 $config->RECIPES = $recipes;
@@ -51,9 +51,6 @@ $config->TYPES = $types;
 
 $typesArchivals = array();
 $typesArchivals["singleOverall"] = '{ "fragment": false, "sort": false }';
-
-/* Functions
-############################################################################ */
 
 function getConfigFile()
 {
@@ -246,7 +243,7 @@ class ImageOperations
         $colorMap = $this->getColorMap($source, $cols, $rows);
 
         $watermarkdata = [];
-        $baseFontSize = $tileSize / 30;
+        $baseFontSize = round($tileSize / 30);
 
         for ($col = 0; $col <= $cols; $col++) {
             for ($row = 0; $row <= $rows; $row++) {
@@ -258,9 +255,9 @@ class ImageOperations
                 $pointsize = rand($baseFontSize, $baseFontSize * 5);
                 $opacity = rand(3, 6) / 10;
 
-                $xRand = rand(0, $tileSize / 4);
+                $xRand = rand(0, round($tileSize / 4));
                 $x = ($col * $tileSize) + $xRand;
-                $yRand = rand(0, $tileSize / 2);
+                $yRand = rand(0, round($tileSize / 2));
                 $y = ($row * $tileSize) + $pointsize + $yRand;
                 if (!isset($colorMap[$col][$row])) {
                     continue;
@@ -318,9 +315,14 @@ class ImageOperations
     {
         $source = $image;
         $target = $this->manageTargetPath($source, $recipeData);
+
+        if (file_exists($target)) {
+          print "-";
+          return;
+      }
         createRecursiveFolder($target);
 
-        $watermarkData = isset($recipeData->watermark) ? $this->createWatermarkData($source, $target) : false;
+        $watermarkData = isset($recipeData->watermark) && $recipeData->watermark === true ? $this->createWatermarkData($source, $target) : false;
         $this->resizeImage($source, $target, $recipeData, $watermarkData);
 
         return true;
@@ -385,29 +387,6 @@ class ImageOperations
         $targetPath = $this->config->BASEPATH . $targetPath;
         mkdir($targetPath, 0775);
     }
-
-    public function __checkPathSegements($path)
-    {
-        $pattern = "=" . $this->config->BASEPATH . "=";
-
-        $workingPath = preg_replace($pattern, "", $path);
-        $pathSegments = explode("/", $workingPath);
-        /* Gunnar hat in der Verzeichnisstruktur immer noch das Haus. Das brauchen wir aber nicht. */
-        unset($pathSegments[3]);
-        $targetPath = "/" . array_shift($pathSegments);
-        foreach ($pathSegments as $segment) {
-            if ($segment !== "pyramid") {
-                $targetPath .= "$segment/";
-            }
-
-            if (!file_exists($this->config->BASEPATH . $targetPath)) {
-                $this->createDirectory($targetPath);
-            }
-        }
-
-        return $targetPath;
-    }
-
 }
 
 function convertImages($collection, $imageOperations, $config)
@@ -420,14 +399,15 @@ function convertImages($collection, $imageOperations, $config)
 
     foreach ($collection->images as $asset) {
         $count++;
-        print "\Asset $count from $stackSize // $asset:";
+        print "\nAsset $count from $stackSize // $asset: ";
 
         $recipeTitles = array_keys($config->RECIPES);
         sort($recipeTitles);
         foreach ($recipeTitles as $recipeTitle) {
-            print "\n->$recipeTitle\n";
             $recipe = $config->RECIPES[$recipeTitle];
             $recipeData = json_decode($recipe);
+
+            print $recipeData->suffix . ", ";
             $imageOperations->processImage($asset, $recipeTitle, $recipeData);
         }
 
@@ -686,13 +666,70 @@ function chooseImageType($config)
     return $options[$choice];
 }
 
+function getConvertionParams($cliOptions, $params)
+{
+
+    $sourceBasePath = $params["sourceBasePath"];
+    $source = isset($cliOptions["dir"])
+    ? $sourceBasePath . '/' . $cliOptions["dir"]
+    : $sourceBasePath;
+
+    $targetBasePath = $params["targetBasePath"];
+    $target = isset($cliOptions["dir"])
+    ? $targetBasePath . '/' . $cliOptions["dir"]
+    : $targetBasePath;
+
+    $defaultPattern = gettype($params["pattern"]) === "array" ? implode("|", $params["pattern"] ) : $params["pattern"];
+    $pattern = isset($cliOptions["pattern"])
+    ? $cliOptions["pattern"]
+    : $defaultPattern;
+
+    $period = isset($cliOptions["period"])
+    ? $cliOptions["period"]
+    : $params["defaultPeriod"];
+
+    $params = [
+        "source" => $source,
+        "target" => $target,
+        "pattern" => $pattern,
+        "period" => $period,
+    ];
+
+    return $params;
+}
+
+function getImageVariants(){
+  $patterns = explode("|", $params["pattern"]);
+  $filestack = array();
+
+  foreach($patterns as $pattern){
+    $cmd = "find " . $params["source"] . " -name '" . $pattern . "' ";
+    $files = [];
+    exec($cmd, $files);
+
+    foreach($files as $file){ array_push($filestack, $file); }    
+  }
+
+  return $filestack;
+}
+
+function createJSONS($params, $config){
+
+  $imageVariants = getImageVariants($params["source"], $params["patter"]);
+
+
+  var_dump($filestack); exit;
+  // exec($cmd, $this->images);
+}
+
 function showMainMenu($config)
 {
 
     $actions = [
         "create-raw-paintings" => "Raw Version der Gemälde erzeugen",
         "create-raw-graphics" => "Raw Version der Grafiken erzeugen",
-        "generate-images" => "Derivate erzeugen",
+        "generate-variants" => "Derivate erzeugen",
+        "generate-json" => "JSON Dateien erzeugen",
         "remove-target-contents" => "Zielverzeichnis löschen",
         "exit" => "Skript beenden",
     ];
@@ -724,36 +761,17 @@ function showMainMenu($config)
     if (!array_key_exists($choice, $options)) {print "\nDiese Aktion ist nicht verfügbar.\n\n";exit;}
 
     switch ($options[$choice]) {
-        case "generate-images":
+        case "generate-variants":
             print "\nBilder generieren …\n";
 
             $cliOptions = getCliOptions($config);
-            $type = chooseImageType($config);
-
-            $sourceBasePath = $config->LOCALCONFIG->preparedImageParams->$type->path;
-            $source = isset($cliOptions["dir"])
-            ? $sourceBasePath . '/' . $cliOptions["dir"]
-            : $sourceBasePath;
-
-            $targetBasePath = $config->LOCALCONFIG->targetPath;
-            $target = isset($cliOptions["dir"])
-            ? $targetBasePath . '/' . $cliOptions["dir"]
-            : $targetBasePath;
-
-            $pattern = isset($cliOptions["pattern"])
-            ? $cliOptions["pattern"]
-            : $config->LOCALCONFIG->preparedImageParams->$type->pattern;
-
-            $period = isset($cliOptions["period"])
-            ? $cliOptions["period"]
-            : $config->LOCALCONFIG->defaultPeriod;
-
-            $params = [
-                "source" => $source,
-                "target" => $target,
-                "pattern" => $pattern,
-                "period" => $period,
-            ];
+            $entityType = chooseImageType($config);
+            $params = getConvertionParams($cliOptions, [
+              "sourceBasePath" => $config->LOCALCONFIG->preparedImageParams->$entityType->path,
+              "targetBasePath" => $config->LOCALCONFIG->targetPath,
+              "pattern" => $config->LOCALCONFIG->preparedImageParams->$entityType->pattern,
+              "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod
+            ]);
 
             confirmParams($params);
 
@@ -762,6 +780,23 @@ function showMainMenu($config)
             convertImages($imageCollection, $imageOperations, $config);
             exitScript();
             break;
+
+        case "generate-json":
+          print "\nJSON Dateien generieren …\n";
+
+          $cliOptions = getCliOptions($config);
+          $type = chooseImageType($config);
+          $params = getConvertionParams($cliOptions, [
+            "sourceBasePath" => $config->LOCALCONFIG->targetPath,
+            "targetBasePath" => $config->LOCALCONFIG->targetPath,
+            "pattern" => ["*.jpg", "*.dzi"],
+            "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod
+          ]);
+
+          confirmParams($params);
+          createJSONS($params, $config);
+          exitScript();
+          break;
 
         case "remove-target-contents":
             removeTargetContents($config);
@@ -793,24 +828,3 @@ function showMainMenu($config)
 showMainMenu($config);
 exitScript();
 
-$newSession = "\n#######################################################\n" . date("d.m.Y, H:i:s", time());
-
-if ($config->MODE === "dzi-only") {
-    $recipes = [];
-    $recipes["tiles"] = $config->RECIPES["tiles"];
-    $config->RECIPES_ORIG = $config->RECIPES;
-    $config->RECIPES = $recipes;
-}
-
-$imageCollection = new ImageCollection($config);
-$imageOperations = new ImageOperations($config);
-convertImages($imageCollection, $imageOperations, $config);
-
-# Archivalien
-/*$config->SOURCE = $local_config->SOURCE_ARCHIVALS;
-$config->TARGET = $local_config->TARGET_ARCHIVALS;
-$config->TYPES = $typesArchivals;
-
-$archivalCollection = new ArchivalCollection($config);
-$imageOperations = new ImageOperations($config);
-convertImages($archivalCollection, $imageOperations, $config); */
