@@ -116,38 +116,6 @@ class ImageOperations
         return "-font $font " . implode(' ', $watermarkdata);
     }
 
-    public function generateTiles($recipeData, $targetData)
-    {
-
-        $path = preg_replace("=pyramid=", "", $targetData['path']);
-
-        //$suffix = ($this->config->MODE !== "dzi-only" && !preg_match("=tif$=", $this->config->PATTERN)) ? '-' . $recipeData->suffix : "";
-        $suffix = (preg_match("=tif$=", $this->config->PATTERN)) ? '-' . $recipeData->suffix : "-origin";
-        $source = $this->config->TARGET . $path . '/' . $targetData['basefilename'] . $suffix . ".jpg";
-
-        $basefilenameTarget = (preg_match("=\-origin=", $targetData['basefilename'])) ? preg_replace("=\-origin=", "", $targetData['basefilename']) : $targetData['basefilename'];
-        $target = $this->config->TARGET . $path . '/' . $basefilenameTarget;
-        $dzi = $target . '.dzi';
-        $files = $target . '_files';
-
-        /*if (file_exists($files) && $this->config->MODE !== "json-only") {
-        $cmd = 'rm -Rf ' . $files;
-        shell_exec($cmd);
-        }*/
-
-        if (file_exists($target . '.dzi') && $this->config->MODE !== "dzi-only") {
-            echo "Skip " . $target . '.dzi' . " already exists.\n";
-            return;
-        }
-        $cmd = 'vips dzsave ' . $source . ' ' . $target . ' --suffix .jpg[Q=95]';
-
-        shell_exec($cmd);
-        chmod($target . '.dzi', 0755);
-
-        $cmd = 'chmod -R 755 ' . $target . '_files';
-        shell_exec($cmd);
-    }
-
     public function manageTargetPath($source, $recipeData)
     {
         $pattern = "=" . $this->params["source"] . "=";
@@ -232,4 +200,30 @@ class ImageOperations
         $targetPath = $this->config->BASEPATH . $targetPath;
         mkdir($targetPath, 0775);
     }
+
+    public function generateTiles($asset)
+    {
+        $source = $asset;
+        $target = preg_replace("=\-origin\.jpg=", "", $asset);
+        $dzi = $target . '.dzi';
+        $files = $target . '_files';
+
+        /*if (file_exists($files) && $this->config->MODE !== "json-only") {
+            $cmd = 'rm -Rf ' . $files;
+            shell_exec($cmd);
+        }*/
+
+        if (file_exists($target . '.dzi')) {
+            echo "Skip " . $target . '.dzi' . " already exists.\n";
+            return;
+        }
+        $cmd = 'vips dzsave ' . $source . ' ' . $target . ' --suffix .jpg[Q=95]';
+    
+        shell_exec($cmd);
+        chmod($target . '.dzi', 0755);
+
+        $cmd = 'chmod -R 755 ' . $target . '_files';
+        shell_exec($cmd);
+    }
+
 }

@@ -3,8 +3,8 @@
 error_reporting(E_ALL);
 
 require './classes/ImageOperations.php';
+require './classes/ImageCollection.php';
 require './classes/JsonOperations.php';
-
 
 ########################################################################  */
 
@@ -30,11 +30,11 @@ $dimensions["imageWidthDefault"] = 2000;
 $config->DIMENSIONS = $dimensions;
 
 $sizes = array();
-# $recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$recipes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 $sizes["small"] = '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 $sizes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 $sizes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
-# $recipes["tiles"] = '{ "suffix": "origin", "format": "dzi"}';
+$sizes["tiles"] = '{ "type": "dzi", "suffix": "dzi"}';
 $config->SIZES = $sizes;
 
 $types = array();
@@ -48,19 +48,20 @@ $types["photomicrograph"] = '{ "fragment":"Photomicrograph", "sort": "07" }';
 $types["conservation"] = '{ "fragment":"Conservation", "sort": "08" }';
 $types["other"] = '{ "fragment":"Other", "sort": "09" }';
 $types["analysis"] = '{ "fragment":"Analysis", "sort": "10" }';
-$types["koe"] = '{ "fragment":"KOE", "sort": "12" }';
 $types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "13" }';
 $config->TYPES = $types;
 
 // $types["rkd"] = '{ "fragment":"RKD", "sort": "11" }';
 $misc = array();
 $misc["json-filename"] = "imageData-v1.2.json";
+$misc["rkdFragment"] = "11_RKD";
+$misc["koeFragment"] = "12_KOE";
 $config->MISC = $misc;
 
 // $typesArchivals = array();
 // $typesArchivals["singleOverall"] = '{ "fragment": false, "sort": false }';
 
-function getConfigFile():object
+function getConfigFile()
 {
     $config_file = './image-tools-config.json';
     if (!file_exists($config_file)) {
@@ -73,7 +74,7 @@ function getConfigFile():object
     return json_decode(trim($config));
 }
 
-function getTypeSubfolderName(String $typeName):string
+function getTypeSubfolderName(String $typeName)
 {
     global $config;
     $typeDataJSON = json_decode($config->TYPES[$typeName]);
@@ -81,15 +82,14 @@ function getTypeSubfolderName(String $typeName):string
     return $folderName;
 }
 
-function getTypeFilenamePattern(String $typeName):string
+function getTypeFilenamePattern(String $typeName)
 {
     global $config;
     $typeDataJSON = json_decode($config->TYPES[$typeName], true);
     return (isset($typeDataJSON->fn_pattern)) ? $typeDataJSON->fn_pattern : "";
 }
 
-
-function convertImages(Object $collection, Object $imageOperations, String $config):void
+function convertImages($collection, $imageOperations, $config)
 {
     $stackSize = $collection->getSize();
     $count = 0;
@@ -115,7 +115,23 @@ function convertImages(Object $collection, Object $imageOperations, String $conf
     }
 }
 
-function getCliOptions():array
+function createImageTiles($collection, $imageOperations, $config)
+{
+    $stackSize = $collection->getSize();
+    $count = 0;
+
+    $loggingPath = $config->PATHS["convertLog"];
+    unlink($loggingPath);
+
+    foreach ($collection->images as $asset) {
+        $count++;
+        print "\nAsset $count from $stackSize // $asset: ";
+        $imageOperations->generateTiles($asset);
+        file_put_contents($loggingPath, "$asset\n", FILE_APPEND);
+    }
+}
+
+function getCliOptions()
 {
     $ret = [];
     $options = getopt("p:d:");
@@ -125,7 +141,7 @@ function getCliOptions():array
     return $ret;
 }
 
-function confirmParams($params):bool
+function confirmParams($params)
 {
     print "----------\n";
     print "Quellverzeichnis: " . $params["source"] . "\n";
@@ -140,13 +156,13 @@ function confirmParams($params):bool
     return true;
 }
 
-function exitScript():void
+function exitScript()
 {
     print "\nfertig :)\n\n";
     exit;
 }
 
-function getImageCollection($params):any
+function getImageCollection($params)
 {
     $imageCollection = new ImageCollection($params);
 
@@ -273,7 +289,7 @@ function createRawImages($imageType, $config)
     $cliOptions = getCliOptions();
     $params = getParamsForRawConvertion($imageType, $config);
 
-    $startDirectory = isset($cliOptions["dir"]) ? $params['source'] . "/" . $cliOptions["dir"] : $params['source'];
+    $startDirectory = isset($cliOptions["dir"]) ? $params['source'] . "/" . $cliOptions["dir"] ."/" : $params['source'];
     $cmd = "find $startDirectory " . $params['searchPattern'];
     exec($cmd, $files);
 
@@ -376,7 +392,7 @@ function getConvertionParams($cliOptions, $params)
     ? $targetBasePath . '/' . $cliOptions["dir"]
     : $targetBasePath;
 
-    $defaultPattern = gettype($params["pattern"]) === "array" ? implode("|", $params["pattern"] ) : $params["pattern"];
+    $defaultPattern = gettype($params["pattern"]) === "array" ? implode("|", $params["pattern"]) : $params["pattern"];
     $pattern = isset($cliOptions["pattern"])
     ? $cliOptions["pattern"]
     : $defaultPattern;
@@ -386,7 +402,9 @@ function getConvertionParams($cliOptions, $params)
     : $params["defaultPeriod"];
 
     $params = [
+        "sourceBasePath" => $sourceBasePath,
         "source" => $source,
+        "targetBasePath" => $targetBasePath,
         "target" => $target,
         "pattern" => $pattern,
         "period" => $period,
@@ -402,6 +420,7 @@ function showMainMenu($config)
         "create-raw-paintings" => "Raw Version der Gemälde erzeugen",
         "create-raw-graphics" => "Raw Version der Grafiken erzeugen",
         "generate-variants" => "Derivate erzeugen",
+        "generate-tiles" => "DZI Tiles erzeugen",
         "generate-json" => "JSON Dateien erzeugen",
         "remove-target-contents" => "Zielverzeichnis löschen",
         "exit" => "Skript beenden",
@@ -440,36 +459,58 @@ function showMainMenu($config)
             $cliOptions = getCliOptions($config);
             $entityType = chooseImageType($config);
             $params = getConvertionParams($cliOptions, [
-              "sourceBasePath" => $config->LOCALCONFIG->preparedImageParams->$entityType->path,
-              "targetBasePath" => $config->LOCALCONFIG->targetPath,
-              "pattern" => $config->LOCALCONFIG->preparedImageParams->$entityType->pattern,
-              "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod
+                "sourceBasePath" => $config->LOCALCONFIG->preparedImageParams->$entityType->path,
+                "targetBasePath" => $config->LOCALCONFIG->targetPath,
+                "pattern" => $config->LOCALCONFIG->preparedImageParams->$entityType->pattern,
+                "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
             ]);
 
             confirmParams($params);
 
             $imageCollection = getImageCollection($params);
             $imageOperations = new ImageOperations($config, $params);
+
             convertImages($imageCollection, $imageOperations, $config);
             exitScript();
             break;
 
+        case "generate-tiles":
+            print "\nImage Tiles generieren …\n";
+
+            $cliOptions = getCliOptions($config);
+            $entityType = chooseImageType($config);
+            $params = getConvertionParams($cliOptions, [
+                "sourceBasePath" => $config->LOCALCONFIG->targetPath,
+                "targetBasePath" => $config->LOCALCONFIG->targetPath,
+                "pattern" => $config->LOCALCONFIG->tileSourcePattern,
+                "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
+            ]);
+
+            confirmParams($params);
+
+            $imageCollection = getImageCollection($params);
+            $imageOperations = new ImageOperations($config, $params);
+
+            createImageTiles($imageCollection, $imageOperations, $config);
+            exitScript();
+            break;
+
         case "generate-json":
-          print "\nJSON Dateien generieren …\n";
+            print "\nJSON Dateien generieren …\n";
 
-          $cliOptions = getCliOptions($config);
-          $params = getConvertionParams($cliOptions, [
-            "sourceBasePath" => $config->LOCALCONFIG->targetPath,
-            "targetBasePath" => $config->LOCALCONFIG->targetPath,
-            "pattern" => ["*.jpg", "*.dzi"],
-            "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod
-          ]);
+            $cliOptions = getCliOptions($config);
+            $params = getConvertionParams($cliOptions, [
+                "sourceBasePath" => $config->LOCALCONFIG->targetPath,
+                "targetBasePath" => $config->LOCALCONFIG->targetPath,
+                "pattern" => ["*.jpg", "*.dzi"],
+                "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
+            ]);
 
-          confirmParams($params);
-          $jsonOperations = new JsonOperations($config, $params);
-          $jsonOperations->createJSONS();
-          exitScript();
-          break;
+            confirmParams($params);
+            $jsonOperations = new JsonOperations($config, $params);
+            $jsonOperations->createJSONS();
+            exitScript();
+            break;
 
         case "remove-target-contents":
             removeTargetContents($config);
@@ -500,4 +541,3 @@ function showMainMenu($config)
 
 showMainMenu($config);
 exitScript();
-
