@@ -8,6 +8,7 @@ class ImageCollection
     {
         $this->params = $params;
         $cmd = "find " . $this->params["source"] . " -maxdepth 6 -mtime " . $this->params["period"] . " \( -not -path '*_files/*' -and -name '" . $this->params["pattern"] . "' \) ";
+
         exec($cmd, $this->images);
     }
 
