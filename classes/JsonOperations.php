@@ -20,7 +20,7 @@ class JsonOperations
       $artefactIds = $this->stripArtefactIds();
 
       foreach($artefactIds as $artefactId){
-        $artefactImages = $this->getImagesForArtefact($artefactId);        
+        $artefactImages = $this->getImagesForArtefact($artefactId);              
         $artefactImagesByType = $this->getArtefactImagesByType($artefactImages);
         $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
         $this->writeJson($artefactId, $imageStack);
@@ -39,13 +39,12 @@ class JsonOperations
     private function getFragment($preSegment){
       $rkdFragment = $this->config->MISC["rkdFragment"];
       $koeFragment = $this->config->MISC["koeFragment"];
-
-      var_dump($preSegment); exit;
+      $fragment = preg_match("=rkd=i", $preSegment) ? $rkdFragment : $koeFragment;
+      return $fragment;
     }
 
     private function getSizeVariantsForImagesOfType($images, $artefactImages){
-      $rkdFragment = $this->config->MISC["rkdFragment"];
-      $koeFragment = $this->config->MISC["koeFragment"];
+
       $sizeVariants = $this->config->SIZES;
       $sizeVariantsForImagesOfType = [];
       $maxWidth = 0;
@@ -54,7 +53,7 @@ class JsonOperations
       foreach($images as $image){
         preg_match("=.*/(.*)\-=", $image, $res);
         if(!$res[1]) continue;
-var_dump($image);
+
         $basename = $res[1];
         $data = array();
 
@@ -71,9 +70,10 @@ var_dump($image);
           preg_match("=(.*)/(.*?)/(.*)=", $imageForBasenameAndSizeVariant, $res);
           $preSegment = $res[1];
           $segment = $res[2];
-var_dump($preSegment);
+
           $data[$sizeVariantName]["src"] = $res[3];
-          $data[$sizeVariantName]["path"] = preg_match("=rkd|koe=i", $preSegment) ? $this->getFragment($preSegment) . "/" . $segment : $segment;
+          $data[$sizeVariantName]["path"] = preg_match("=rkd|koe=i", $preSegment) 
+            ? $this->getFragment($preSegment) . "/" . $segment : $segment;
           $data[$sizeVariantName]["type"] = isset($sizeVariantPropterties->type) ? $sizeVariantPropterties->type : 'img';
           
           if($data[$sizeVariantName]["type"] !== 'img') continue;
@@ -103,7 +103,7 @@ var_dump($preSegment);
     private function createImageStack($imagesByType, $artefactImages){
       
       $imageStack = [];
-var_dump($imagesByType);
+
       foreach($imagesByType as $typeName=>$images){
         $imageStack[$typeName] = $this->getSizeVariantsForImagesOfType($images, $artefactImages);
       }
@@ -118,6 +118,7 @@ var_dump($imagesByType);
     private function writeJson($artefactFolder, $artefactData){
       $target = $this->targetBasePath . "/" . $artefactFolder . "/" . $this->config->MISC["json-filename"];
       file_put_contents($target, json_encode($artefactData));
+      chmod($target, 0755);
       print "schreibe $target\n";
     }
 
@@ -149,8 +150,7 @@ var_dump($imagesByType);
     }
 
     private function getImagesForOrigin( $images, $params){
-
-      $imagesForOrigin = preg_grep("=\-origin\.=", $images);
+      $imagesForOrigin = preg_grep("=\-origin\.=", $images);   
       $sortedImagesForOrigin = $this->sortImages($imagesForOrigin, $params->fragment);
       return $sortedImagesForOrigin;
     }
@@ -163,6 +163,11 @@ var_dump($imagesByType);
 
       foreach($imagesForVariant as $image){
         $imageSortFragment = preg_replace($pattern, "", $image);
+        // if(preg_match("=rkd=i", $image)){ $imageSortFragment = preg_replace("=\-origin=", "-origin-02-rkd", $imageSortFragment); }
+        // if(preg_match("=koe=i", $image)){ $imageSortFragment = preg_replace("=\-origin=", "-origin-01-koe", $imageSortFragment); }
+        if(preg_match("=rkd=i", $image)){ $imageSortFragment = "02-rkd-$imageSortFragment"; }
+        if(preg_match("=koe=i", $image)){ $imageSortFragment = "01-koe-$imageSortFragment";}
+        
         $sortHelper[$imageSortFragment] = $image;
       }
 
@@ -186,16 +191,20 @@ var_dump($imagesByType);
 
     private function getArtefactImagesByType($artefactImages){
       $imageStack = [];
+
       foreach($this->config->TYPES as $typeName=>$typeData){
         $params = json_decode($typeData);
         $pattern = "=" . $params->sort . "_" . $params->fragment . "=";
         $imagesForType = preg_grep($pattern, $artefactImages);
+
         $originImagesForType= $this->getImagesForOrigin($imagesForType, $params);
 
         if(sizeof($originImagesForType) === 0) continue;
         $imageStack[$typeName] = $originImagesForType;
 
       }
+
+      
       return $imageStack;
     }
 
@@ -206,15 +215,7 @@ var_dump($imagesByType);
       foreach($patterns as $pattern){
         $cmd = "find " . $this->source . " \( -not -path '*_files/*' -and -name '" . $pattern . "' \) ";
         $files = [];
-        exec($cmd, $this->images);
-        // foreach($files as $file){ 
-        //   switch(true){
-        //     case preg_match("=RKD=", $file):
-        //       array_push($this->rkdImages, $file);
-        //     default:
-        //     array_push($this->images, $file);
-        //   }
-        // }    
+        exec($cmd, $this->images);   
       }
     }
 }
