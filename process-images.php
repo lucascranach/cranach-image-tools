@@ -5,6 +5,7 @@ error_reporting(E_ALL);
 require './classes/ImageOperations.php';
 require './classes/ImageCollection.php';
 require './classes/JsonOperations.php';
+require './classes/Metadata.php';
 
 ########################################################################  */
 
@@ -54,6 +55,7 @@ $config->TYPES = $types;
 // $types["rkd"] = '{ "fragment":"RKD", "sort": "11" }';
 $misc = array();
 $misc["json-filename"] = "imageData-v1.2.json";
+$misc["metadata-filename"] = "metaData-v1.0.json";
 $misc["rkdFragment"] = "11_RKD";
 $misc["koeFragment"] = "12_KOE";
 $config->MISC = $misc;
@@ -289,7 +291,7 @@ function createRawImages($imageType, $config)
     $cliOptions = getCliOptions();
     $params = getParamsForRawConvertion($imageType, $config);
 
-    $startDirectory = isset($cliOptions["dir"]) ? $params['source'] . "/" . $cliOptions["dir"] ."/" : $params['source'];
+    $startDirectory = isset($cliOptions["dir"]) ? $params['source'] . "/" . $cliOptions["dir"] . "/" : $params['source'];
     $cmd = "find $startDirectory " . $params['searchPattern'];
     exec($cmd, $files);
 
@@ -422,6 +424,7 @@ function showMainMenu($config)
         "generate-variants" => "Derivate erzeugen",
         "generate-tiles" => "DZI Tiles erzeugen",
         "generate-json" => "JSON Dateien erzeugen",
+        "extract-metadata" => "Metadaten extrahieren",
         "remove-target-contents" => "Zielverzeichnis löschen",
         "exit" => "Skript beenden",
     ];
@@ -509,6 +512,23 @@ function showMainMenu($config)
             confirmParams($params);
             $jsonOperations = new JsonOperations($config, $params);
             $jsonOperations->createJSONS();
+            exitScript();
+            break;
+
+        case "extract-metadata":
+            print "\nMetadaten extrahieren …\n";
+
+            $cliOptions = getCliOptions($config);
+            $params = getConvertionParams($cliOptions, [
+                "sourceBasePath" => $config->LOCALCONFIG->metaDataSource,
+                "targetBasePath" => $config->LOCALCONFIG->metaDataTarget,
+                "pattern" => ["*.tif"],
+                "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
+            ]);
+
+            confirmParams($params);
+            $metadataService = new Metadata($config, $params);
+            $metadataService->extractMetadata();
             exitScript();
             break;
 
