@@ -26,17 +26,19 @@ class Metadata
         exec($cmd, $data);
         $metadata = $this->stripData($data);
         $metaDataObject = $this->createMetaDataObject($metadata);
-        $artefactName = $this->extractArtefactId($image);
-        $this->createMetadataJson($artefactName, $metaDataObject);
+        $artefactId = $this->extractArtefactId($image);
+        $filename = $this->extractFilename($image);
+        $this->createMetadataJson($artefactId, $filename, $metaDataObject);
       }
     }
 
-    private function createMetadataJson($artefactName, $metaDataObject){
-      
-      $target = $this->target . "/" . $artefactName . "-" . $this->config->MISC["metadata-filename"];
+    private function createMetadataJson($artefactId, $filename, $metaDataObject){
+
+      $filenameWithoutSuffix = preg_replace("=\.tif=", "", $filename);
+      $target = $this->target . "/" . $artefactId . "/". $filenameWithoutSuffix . "-" . $this->config->MISC["metadata-filename"];
+      createRecursiveFolder($target);
       file_put_contents($target, json_encode($metaDataObject));
       chmod($target, 0755);
-
     }
 
     private function createMetaDataObject($metadata){
@@ -105,6 +107,12 @@ class Metadata
       $path = preg_replace("=". $this->source ."/=", "", $image);
       $artefactId = preg_replace("=/.*?$=", "", $path);
       return $artefactId;
+    }
+
+    private function extractFilename($image){  
+      preg_match("=.*/(.*)=", $image, $res);
+      $filename = $res[1];
+      return $filename;
     }
 
     private function slugify($string){
