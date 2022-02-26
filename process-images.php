@@ -357,6 +357,7 @@ function chooseImageType($config)
     $imageTypes = [
         "paintings" => "Gemälde",
         "graphics" => "Grafiken",
+        "archivals" => "Archivalien",
     ];
 
     print "----------\n";
