@@ -18,9 +18,8 @@ class JsonOperations
     public function createJSONS(){
       $this->getImageVariants();
       $artefactIds = $this->stripArtefactIds();
-
       foreach($artefactIds as $artefactId){
-        $artefactImages = $this->getImagesForArtefact($artefactId);              
+        $artefactImages = $this->getImagesForArtefact($artefactId);
         $artefactImagesByType = $this->getArtefactImagesByType($artefactImages);
         $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
         $this->writeJson($artefactId, $imageStack);
@@ -157,7 +156,7 @@ class JsonOperations
 
     private function sortImages($imagesForVariant, $limiter){
 
-      $pattern = "=.*_".$limiter."\-=";
+      $pattern = "=.*_".$limiter.".=";
       $sortHelper = [];
       $sortedImages = [];
 
@@ -167,7 +166,7 @@ class JsonOperations
         // if(preg_match("=koe=i", $image)){ $imageSortFragment = preg_replace("=\-origin=", "-origin-01-koe", $imageSortFragment); }
         if(preg_match("=rkd=i", $image)){ $imageSortFragment = "02-rkd-$imageSortFragment"; }
         if(preg_match("=koe=i", $image)){ $imageSortFragment = "01-koe-$imageSortFragment";}
-        
+        $imageSortFragment = strtolower($imageSortFragment);
         $sortHelper[$imageSortFragment] = $image;
       }
 
@@ -177,7 +176,7 @@ class JsonOperations
 
       sort($sortFramentsWithTrailingChars);
       sort($sortFramentsWithTrailingNumbers);
-
+      
       foreach($sortFramentsWithTrailingChars as $sortFragment){
         array_push($sortedImages, $sortHelper[$sortFragment]);
       }
