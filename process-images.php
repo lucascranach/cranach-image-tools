@@ -35,7 +35,7 @@ $sizes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharp
 $sizes["small"] = '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 $sizes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 $sizes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
-// $sizes["tiles"] = '{ "type": "dzi", "suffix": "dzi"}';
+$sizes["tiles"] = '{ "type": "dzi", "suffix": "dzi"}';
 $config->SIZES = $sizes;
 
 $types = array();
@@ -136,9 +136,11 @@ function createImageTiles($collection, $imageOperations, $config)
 function getCliOptions()
 {
     $ret = [];
-    $options = getopt("p:d:");
+    $options = getopt("p:d:o:t:");
     if (isset($options["p"])) {$ret["pattern"] = $options["p"];}
     if (isset($options["d"])) {$ret["dir"] = $options["d"];}
+    if (isset($options["o"])) {$ret["overwrite"] = true;}
+    if (isset($options["t"])) {$ret["period"] = $options["t"];}
 
     return $ret;
 }
@@ -150,6 +152,7 @@ function confirmParams($params)
     print "Zielverzeichnis: " . $params["target"] . "\n";
     print "Pattern: " . $params["pattern"] . "\n";
     print "Zeitspanne: " . $params["period"] . "\n";
+    print "Overwrite: " . $params["overwrite"] . "\n";
 
     print "\nAlle Angaben in Ordnung? [j,n] ";
     $choice = rtrim(fgets(STDIN));
@@ -183,6 +186,7 @@ function getImageCollection($params)
             echo "Your favorite color is green!";
             break;
         default:
+            echo "Deine Wahl: $choice\nNa gut, dann eben nicht :)\n";
             exitScript();
     }
 }
@@ -404,6 +408,10 @@ function getConvertionParams($cliOptions, $params)
     ? $cliOptions["period"]
     : $params["defaultPeriod"];
 
+    $overwrite = isset($cliOptions["overwrite"])
+    ? $cliOptions["overwrite"]
+    : "nein";
+
     $params = [
         "sourceBasePath" => $sourceBasePath,
         "source" => $source,
@@ -411,6 +419,7 @@ function getConvertionParams($cliOptions, $params)
         "target" => $target,
         "pattern" => $pattern,
         "period" => $period,
+        "overwrite" => $overwrite,
     ];
 
     return $params;
@@ -433,6 +442,8 @@ function showMainMenu($config)
     $params = [
         "-p" => "Übergibt ein File-Pattern, welches das Pattern der Config überschreibt, z.B. -p \"G_*\"",
         "-d" => "Übergibt ein optionales Startverzeichnis, z.B. -d \"PRIVATE_NONE-P200_FR058\"",
+        "-o ja" => "Damit werden bestehende Daten überschrieben.",
+        "-t" => "Übergibt ein Periode, z.B. -2 findet nur Dateien, die in den letzten 2 Tagen geändert wurden."
     ];
 
     print "\n#############################################################################\n";
@@ -491,8 +502,9 @@ function showMainMenu($config)
             ]);
 
             confirmParams($params);
-
+            print "Generate Tiles\n";
             $imageCollection = getImageCollection($params);
+            print "imageCollection\n";
             $imageOperations = new ImageOperations($config, $params);
 
             createImageTiles($imageCollection, $imageOperations, $config);
