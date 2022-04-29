@@ -1,6 +1,6 @@
 <?php
 
-$config = json_decode(file_get_contents('./image-tools.config', false));
+$config = json_decode(file_get_contents('./image-browser-config.json'));
 
 class ImageBrowser
 {
@@ -17,8 +17,9 @@ class ImageBrowser
       $this->cleanPath = $this->getPath("clean");
       $this->subDirs = $this->getSubDirs();
       $this->images = $this->getFiles($this->config->SEARCH_PATTERNS->IMAGES);
-      $this->jsons = $this->getFiles($this->config->SEARCH_PATTERNS->JSONS);
+      $this->jsons = $this->getFiles($this->config->SEARCH_PATTERNS->JSON);
       $this->dzi = $this->getFiles($this->config->SEARCH_PATTERNS->DZI);
+
     }
 
     private function getCachedFile($id){
@@ -136,6 +137,7 @@ class ImageBrowser
       $res["jsons"] = $this->jsons;
       $res["dzi"] = $this->dzi;
       $res["meta"] = $this->getMeta();
+      
       header('Content-Type: application/json');
       print json_encode($res); 
       exit;

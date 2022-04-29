@@ -1,0 +1,11 @@
+{
+  "pathAssets": "/home/cnoss/cranach-image-tools",
+  "cachePath": "/home/cnoss/cranach-image-tools/cache",
+  "tileSize": 300,
+  "SEARCH_PATTERNS": {
+    "IMAGES": "*.jpg",
+    "JSON": "*.json",
+    "DZI": "*.dzi"
+  },
+  "SERVER_ROOT": "/home/mkpacc/imageserver-data-hiRes2022"
+}

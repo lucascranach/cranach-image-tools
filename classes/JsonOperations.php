@@ -75,6 +75,9 @@ class JsonOperations
             ? $this->getFragment($preSegment) . "/" . $segment : $segment;
           $data[$sizeVariantName]["type"] = isset($sizeVariantPropterties->type) ? $sizeVariantPropterties->type : 'img';
           
+          if($data[$sizeVariantName]["type"] === 'dzi'){
+            $data[$sizeVariantName]["src"] = preg_replace("=\-dzi\.jpg=", ".dzi", $data[$sizeVariantName]["src"] );
+          }
           if($data[$sizeVariantName]["type"] !== 'img') continue;
           $data[$sizeVariantName]["dimensions"] = $this->getImageDimensions($imageForBasenameAndSizeVariant);
           $maxWidth = $data[$sizeVariantName]["dimensions"]["width"] > $maxWidth 
@@ -83,6 +86,8 @@ class JsonOperations
           $maxHeight = $data[$sizeVariantName]["dimensions"]["height"] > $maxHeight 
             ? $data[$sizeVariantName]["dimensions"]["height"]
             : $maxHeight;
+
+          
         } 
 
         array_push($sizeVariantsForImagesOfType, $data);
@@ -116,6 +121,7 @@ class JsonOperations
 
     private function writeJson($artefactFolder, $artefactData){
       $target = $this->targetBasePath . "/" . $artefactFolder . "/" . $this->config->MISC["json-filename"];
+
       file_put_contents($target, json_encode($artefactData));
       chmod($target, 0755);
       print "schreibe $target\n";
@@ -162,18 +168,21 @@ class JsonOperations
 
       foreach($imagesForVariant as $image){
         $imageSortFragment = preg_replace($pattern, "", $image);
-        // if(preg_match("=rkd=i", $image)){ $imageSortFragment = preg_replace("=\-origin=", "-origin-02-rkd", $imageSortFragment); }
-        // if(preg_match("=koe=i", $image)){ $imageSortFragment = preg_replace("=\-origin=", "-origin-01-koe", $imageSortFragment); }
+        $filename = preg_replace("=.*/=", "", $image);
         if(preg_match("=rkd=i", $image)){ $imageSortFragment = "02-rkd-$imageSortFragment"; }
-        if(preg_match("=koe=i", $image)){ $imageSortFragment = "01-koe-$imageSortFragment";}
+        if(preg_match("=koe=i", $image)){ $imageSortFragment = "01-koe-$imageSortFragment"; }
+        if(!preg_match("=$limiter=", $filename)){ $imageSortFragment = "noType--$imageSortFragment"; }
         $imageSortFragment = strtolower($imageSortFragment);
         $sortHelper[$imageSortFragment] = $image;
       }
 
       $sortFragments = array_keys($sortHelper);
-      $sortFramentsWithTrailingChars = preg_grep("=^[a-zA-Z]=", $sortFragments);
-      $sortFramentsWithTrailingNumbers = preg_grep("=^[0-9]=", $sortFragments);
+      $sortFramentsWithoutType = preg_grep("=notype=", $sortFragments);
+      $sortFramentsWithType = array_diff($sortFragments, $sortFramentsWithoutType);
 
+      $sortFramentsWithTrailingChars = preg_grep("=^[a-zA-Z]=", $sortFramentsWithType);
+      $sortFramentsWithTrailingNumbers = preg_grep("=^[0-9]=", $sortFramentsWithType);
+      
       sort($sortFramentsWithTrailingChars);
       sort($sortFramentsWithTrailingNumbers);
       
@@ -182,6 +191,10 @@ class JsonOperations
       }
 
       foreach($sortFramentsWithTrailingNumbers as $sortFragment){
+        array_push($sortedImages, $sortHelper[$sortFragment]);
+      }
+
+      foreach($sortFramentsWithoutType as $sortFragment){
         array_push($sortedImages, $sortHelper[$sortFragment]);
       }
       
