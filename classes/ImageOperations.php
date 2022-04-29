@@ -21,7 +21,7 @@ class ImageOperations
 
         $colorMapPath = $this->config->PATHS["colormap"];
 
-        $cmd = "convert -resize " . $mapCols . "x$mapRows -set colorspace sRGB $source txt:";
+        $cmd = "convert +repage -auto-level -depth 8 -resize " . $mapCols . "x$mapRows -set colorspace sRGB $source txt:";
         exec($cmd, $data);
 
         // $cmd = "convert -resize " . $mapCols. "x$mapRows -colorspace Gray $source $colorMapPath";

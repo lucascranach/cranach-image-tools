@@ -16,6 +16,7 @@ class Metadata
       
       $size = sizeof($this->images);
       $count = 0;
+      $errorLog = [];
 
       foreach($this->images as $image){
         $count++;
@@ -25,11 +26,21 @@ class Metadata
         $cmd = "exiftool $image";
         exec($cmd, $data);
         $metadata = $this->stripData($data);
-        $metaDataObject = $this->createMetaDataObject($metadata);
+        list($metaDataObject, $checksum) = $this->createMetaDataObject($metadata);
+        
+        if(strlen($checksum) === 0){
+          print "Keine Metadaten für $image\n";
+          array_push($errorLog, $image);
+          continue;
+        } 
+
+        
         $artefactId = $this->extractArtefactId($image);
         $filename = $this->extractFilename($image);
         $this->createMetadataJson($artefactId, $filename, $metaDataObject);
       }
+
+      file_put_contents("metadata-log.txt", join("\n", $errorLog));
     }
 
     private function createMetadataJson($artefactId, $filename, $metaDataObject){
@@ -44,30 +55,35 @@ class Metadata
     private function createMetaDataObject($metadata){
 
       $metaDataObject = [];
+      $log = [];
 
       $params = [
         "sourceFields" => ["xp-comment"],
         "data" => $metadata
       ];
       list($metaDataObject['image-description-de'], $metaDataObject['image-description-en']) = $this->addToMetaDataObject($params);
-
+      array_push($log, $metaDataObject['image-description-de']); 
+      
       $params = [
         "sourceFields" => ["xp-subject"],
         "data" => $metadata
       ];
       list($metaDataObject['file-type-de'], $metaDataObject['file-type-en']) = $this->addToMetaDataObject($params);
+      array_push($log, $metaDataObject['file-type-de']); 
 
       $params = [
         "sourceFields" => ["copyright"],
         "data" => $metadata
       ];
       list($metaDataObject['image-created-de'], $metaDataObject['image-created-en']) = $this->addToMetaDataObject($params);
-      
+      array_push($log, $metaDataObject['image-created-de']); 
+
       $params = [
         "sourceFields" => ["copyright-notice"],
         "data" => $metadata
       ];
       list($metaDataObject['image-source-de'], $metaDataObject['image-source-en']) = $this->addToMetaDataObject($params);
+      array_push($log, $metaDataObject['image-source-de']); 
 
       $params = [
         "sourceFields" => ["date-created"],
@@ -76,14 +92,9 @@ class Metadata
       list($metaDataObject['image-date-de'], $metaDataObject['image-date-en']) = $this->addToMetaDataObject($params);
       $metaDataObject['image-date-de'] = str_replace(":", "-", $metaDataObject['image-date-de']);
       $metaDataObject['image-date-en'] = str_replace(":", "-", $metaDataObject['image-date-en']);
+      array_push($log, $metaDataObject['image-date-de']); 
 
-      $params = [
-        "sourceFields" => ["xp-comment"],
-        "data" => $metadata
-      ];
-      list($metaDataObject['image-description-de'], $metaDataObject['image-description-en']) = $this->addToMetaDataObject($params);
-
-      return $metaDataObject;
+      return [$metaDataObject, join("", $log)];
     }
 
     private function getFieldContent($params){
@@ -96,7 +107,7 @@ class Metadata
 
     private function addToMetaDataObject($params){
       $content = $this->getFieldContent($params);
-      
+      if(!$content) return ['',''];
       if(!preg_match("=#=", $content)) return [trim($content), trim($content)];
       
       list($de, $en) = explode("#", $content);
