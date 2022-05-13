@@ -305,11 +305,10 @@ function createRawImages($imageType, $config)
 
     $count = 1;
     foreach ($files as $file) {
-        $pathWithoutPyramid = preg_replace("=pyramid/=", "", $file);
+        $pathWithoutPyramid = preg_replace("=/pyramid/=", "/", $file);
         $pattern = "=" . $params['source'] . "=";
         $target = preg_replace($pattern, $params['target'], $pathWithoutPyramid);
         $target = preg_replace("=\..*?$=", ".tif", $target);
-
         print "$count von " . sizeof($files) . "\n";
         $count++;
 
@@ -323,8 +322,7 @@ function createRawImages($imageType, $config)
         print "erzeuge $target\n";
 
         exec($cmd);
-        cleanUpPyramidTiffs($target);
-
+        // cleanUpPyramidTiffs($target);
         // file_put_contents($loggingPath, "$file\n", FILE_APPEND);
     }
 
@@ -535,7 +533,7 @@ function showMainMenu($config)
             $params = getConvertionParams($cliOptions, [
                 "sourceBasePath" => $config->LOCALCONFIG->metaDataSource,
                 "targetBasePath" => $config->LOCALCONFIG->metaDataTarget,
-                "pattern" => ["*.tif"],
+                "pattern" => [".*\.tif"],
                 "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
             ]);
 
