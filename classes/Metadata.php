@@ -40,8 +40,6 @@ class Metadata
         $this->createMetadataJson($artefactId, $filename, $metaDataObject);
         $this->writeRawMetadata($artefactId, $filename, $metadataRaw);
       }
-
-      file_put_contents("metadata-log.txt", join("\n", $errorLog));
     }
 
     private function createMetadataJson($artefactId, $filename, $metaDataObject){
