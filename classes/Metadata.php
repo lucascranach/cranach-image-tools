@@ -23,21 +23,22 @@ class Metadata
 
         print "$count/$size $image\n";
         
-        $cmd = "exiftool $image";
+        $cmd = "exiftool -charset utf-8 $image";
+        $data = [];
         exec($cmd, $data);
-        $metadata = $this->stripData($data);
-        list($metaDataObject, $checksum) = $this->createMetaDataObject($metadata);
+        $metadataRaw = $this->stripData($data);
+        list($metaDataObject, $checksum) = $this->createMetaDataObject($metadataRaw);
         
         if(strlen($checksum) === 0){
-          print "Keine Metadaten für $image\n";
+          print "\tKeine Metadaten für $image\n\n";
           array_push($errorLog, $image);
           continue;
         } 
-
         
         $artefactId = $this->extractArtefactId($image);
         $filename = $this->extractFilename($image);
         $this->createMetadataJson($artefactId, $filename, $metaDataObject);
+        $this->writeRawMetadata($artefactId, $filename, $metadataRaw);
       }
 
       file_put_contents("metadata-log.txt", join("\n", $errorLog));
@@ -45,10 +46,29 @@ class Metadata
 
     private function createMetadataJson($artefactId, $filename, $metaDataObject){
 
-      $filenameWithoutSuffix = preg_replace("=\.tif=", "", $filename);
+      $filenameWithoutSuffix = preg_replace("=\.tif=i", "", $filename);
       $target = $this->target . "/" . $artefactId . "/". $filenameWithoutSuffix . "-" . $this->config->MISC["metadata-filename"];
       createRecursiveFolder($target);
-      file_put_contents($target, json_encode($metaDataObject));
+
+      $json = json_encode($metaDataObject, JSON_UNESCAPED_UNICODE);
+
+      file_put_contents($target, $json );
+      chmod($target, 0755);
+    }
+
+    private function writeRawMetadata($artefactId, $filename, $metadataRaw){
+
+      $filenameWithoutSuffix = preg_replace("=\.tif=i", "", $filename);
+      $target = $this->target . "/" . $artefactId . "/". $filenameWithoutSuffix . "-RAW.txt";
+      createRecursiveFolder($target);
+
+      $dataRaw = "";
+
+      foreach($metadataRaw as $key=>$value){
+        $dataRaw .= "$key: $value\n";
+      }
+
+      file_put_contents($target, $dataRaw);
       chmod($target, 0755);
     }
 
@@ -135,16 +155,28 @@ class Metadata
       $structuredData = [];
       foreach($data as $line){
         preg_match("=(.*?)\:(.*)=", $line, $res);
-        $key = $this->slugify($res[1]);
-        $value = trim($res[2], " ");
-        $structuredData[$key] = $value;
+        try {
+          $key = $this->slugify($res[1]);
+          $value = trim($res[2], " ");
+        } catch (Exception $e) {
+          echo 'Exception abgefangen: ',  $e->getMessage(), "\n";
+        }
+
+        $structuredData[$key] = $this->cleanValue($value);
       }
       return $structuredData;
     }
     
     private function getImages(){
-      $cmd = "find " . $this->source . " -type f -name '" . $this->pattern . "'";
+      $cmd = "find " . $this->source . " -type f -iregex '" . $this->pattern . "'";
+      var_dump($cmd);
       exec($cmd, $images);
       return $images;
+    }
+
+    private function cleanValue($value){
+      $value = preg_replace("=¬=", "", $value);
+      return $value;
+
     }
 }
