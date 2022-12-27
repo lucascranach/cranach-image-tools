@@ -128,7 +128,7 @@ class JsonOperations
     }
 
     private function getImagesForArtefact($artefactId){
-      $pattern = "=" . $artefactId . "=";
+      $pattern = "=/" . $artefactId . "_=";
       $imagesWithFullPath = preg_grep($pattern, $this->images);
 
       $pattern = "=" .  $this->sourceBasePath . "/=";
