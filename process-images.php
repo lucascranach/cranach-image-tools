@@ -54,7 +54,7 @@ $config->TYPES = $types;
 
 // $types["rkd"] = '{ "fragment":"RKD", "sort": "11" }';
 $misc = array();
-$misc["json-filename"] = "imageData-v1.2.json";
+$misc["json-filename"] = "imageData-v1.3.json";
 $misc["metadata-filename"] = "metaData-v1.0.json";
 $misc["rkdFragment"] = "11_RKD";
 $misc["koeFragment"] = "12_KOE";
