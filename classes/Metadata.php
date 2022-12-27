@@ -71,8 +71,9 @@ class Metadata
       list($metaDataObject['file-type-de'], $metaDataObject['file-type-en']) = $this->addToMetaDataObject($params);
       array_push($log, $metaDataObject['file-type-de']); 
 
+      /* Artist */
       $params = [
-        "sourceFields" => ["copyright"],
+        "sourceFields" => ["artist"],
         "data" => $metadata
       ];
       list($metaDataObject['image-created-de'], $metaDataObject['image-created-en']) = $this->addToMetaDataObject($params);

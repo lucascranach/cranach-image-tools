@@ -113,7 +113,7 @@ function convertImages($collection, $imageOperations, $config)
             $imageOperations->processImage($asset, $recipeTitle, $recipeData);
         }
 
-        file_put_contents($loggingPath, "$asset\n", FILE_APPEND);
+        // file_put_contents($loggingPath, "$asset\n", FILE_APPEND);
     }
 }
 
@@ -129,7 +129,7 @@ function createImageTiles($collection, $imageOperations, $config)
         $count++;
         print "\nAsset $count from $stackSize // $asset: ";
         $imageOperations->generateTiles($asset);
-        file_put_contents($loggingPath, "$asset\n", FILE_APPEND);
+        // file_put_contents($loggingPath, "$asset\n", FILE_APPEND);
     }
 }
 
@@ -325,7 +325,7 @@ function createRawImages($imageType, $config)
         exec($cmd);
         cleanUpPyramidTiffs($target);
 
-        file_put_contents($loggingPath, "$file\n", FILE_APPEND);
+        // file_put_contents($loggingPath, "$file\n", FILE_APPEND);
     }
 
 }
