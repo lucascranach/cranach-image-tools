@@ -83,7 +83,7 @@ class Metadata
       array_push($log, $metaDataObject['image-description-de']); 
       
       $params = [
-        "sourceFields" => ["xp-subject"],
+        "sourceFields" => ["xp-subject", "xp-title", "title", "description", "image-description", "object-name", "caption-abstract"],
         "data" => $metadata
       ];
       list($metaDataObject['file-type-de'], $metaDataObject['file-type-en']) = $this->addToMetaDataObject($params);
@@ -91,14 +91,14 @@ class Metadata
 
       /* Artist */
       $params = [
-        "sourceFields" => ["artist"],
+        "sourceFields" => ["creator"],
         "data" => $metadata
       ];
       list($metaDataObject['image-created-de'], $metaDataObject['image-created-en']) = $this->addToMetaDataObject($params);
       array_push($log, $metaDataObject['image-created-de']); 
 
       $params = [
-        "sourceFields" => ["copyright-notice"],
+        "sourceFields" => ["rights"],
         "data" => $metadata
       ];
       list($metaDataObject['image-source-de'], $metaDataObject['image-source-en']) = $this->addToMetaDataObject($params);
