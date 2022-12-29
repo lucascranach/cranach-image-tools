@@ -109,11 +109,13 @@ function convertImages($collection, $imageOperations, $config)
             $recipe = $config->SIZES[$recipeTitle];
             $recipeData = json_decode($recipe);
 
+            // if (isset($recipeData->type) && $recipeData->type == "dzi") {
+            //     continue;
+            // }
+
             print $recipeData->suffix . ", ";
             $imageOperations->processImage($asset, $recipeTitle, $recipeData);
         }
-
-        // file_put_contents($loggingPath, "$asset\n", FILE_APPEND);
     }
 }
 
@@ -432,6 +434,7 @@ function showMainMenu($config)
         "generate-variants" => "Derivate erzeugen",
         "generate-tiles" => "DZI Tiles erzeugen",
         "generate-json" => "JSON Dateien erzeugen",
+        "generate-json-archivals" => "JSON Dateien für Archivalien erzeugen",
         "extract-metadata" => "Metadaten extrahieren",
         "remove-target-contents" => "Zielverzeichnis löschen",
         "exit" => "Skript beenden",
@@ -441,7 +444,7 @@ function showMainMenu($config)
         "-p" => "Übergibt ein File-Pattern, welches das Pattern der Config überschreibt, z.B. -p \"G_*\"",
         "-d" => "Übergibt ein optionales Startverzeichnis, z.B. -d \"PRIVATE_NONE-P200_FR058\"",
         "-o ja" => "Damit werden bestehende Daten überschrieben.",
-        "-t" => "Übergibt ein Periode, z.B. -2 findet nur Dateien, die in den letzten 2 Tagen geändert wurden."
+        "-t" => "Übergibt ein Periode, z.B. -2 findet nur Dateien, die in den letzten 2 Tagen geändert wurden.",
     ];
 
     print "\n#############################################################################\n";
@@ -519,6 +522,25 @@ function showMainMenu($config)
                 "pattern" => ["*.jpg", "*.dzi"],
                 "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
             ]);
+
+            confirmParams($params);
+            $jsonOperations = new JsonOperations($config, $params);
+            $jsonOperations->createJSONS();
+            exitScript();
+            break;
+
+        case "generate-json-archivals":
+            print "\nJSON Dateien für Archivalien generieren …\n";
+
+            $cliOptions = getCliOptions($config);
+            $params = getConvertionParams($cliOptions, [
+                "sourceBasePath" => $config->LOCALCONFIG->targetPath,
+                "targetBasePath" => $config->LOCALCONFIG->targetPath,
+                "pattern" => ["*.jpg", "*.dzi"],
+                "defaultPeriod" => $config->LOCALCONFIG->defaultPeriod,
+            ]);
+
+            $params["modus"] = "archivals";
 
             confirmParams($params);
             $jsonOperations = new JsonOperations($config, $params);

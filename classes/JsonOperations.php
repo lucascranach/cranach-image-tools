@@ -11,6 +11,7 @@ class JsonOperations
         $this->target = $params['target'];
         $this->pattern = $params['pattern'];
         $this->period = $params['period'];
+        $this->modus = isset($params['modus']) ? $params['modus'] : false;
         $this->images = [];
         $this->rkdImages = [];
     }
@@ -18,10 +19,18 @@ class JsonOperations
     public function createJSONS(){
       $this->getImageVariants();
       $artefactIds = $this->stripArtefactIds();
+      
       foreach($artefactIds as $artefactId){
-        $artefactImages = $this->getImagesForArtefact($artefactId);
+        $seperator = $this->modus === 'archivals' ? '-' : '_';
+        $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);
+        if(sizeof($artefactImages) === 0 && $this->modus === 'archivals'){
+          preg_match("=(.*)_=", $artefactId, $res);
+          $baseArtefactId = $res[1];
+          $artefactImages = $this->getImagesForArtefact($baseArtefactId, "_");
+        }
         $artefactImagesByType = $this->getArtefactImagesByType($artefactImages);
         $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
+        
         $this->writeJson($artefactId, $imageStack);
       }
     }
@@ -57,12 +66,13 @@ class JsonOperations
         $data = array();
 
         foreach($sizeVariants as $sizeVariantName=>$sizeVariantProptertyString){
+
           $data[$sizeVariantName] = array();
           $data[$sizeVariantName]= array();
 
           $sizeVariantPropterties = json_decode($sizeVariantProptertyString);
           $suffix = isset($sizeVariantPropterties->type) ? '.' . $sizeVariantPropterties->type : '-'.$sizeVariantPropterties->suffix;
-          $searchPattern = "=" . $basename . $suffix . "=";
+          $searchPattern = "=" . $basename . $suffix . "=";      
           $imagesForBasenameAndSizeVariant = preg_grep($searchPattern,$artefactImages);
           $imageForBasenameAndSizeVariant = array_shift($imagesForBasenameAndSizeVariant);
 
@@ -127,10 +137,9 @@ class JsonOperations
       print "schreibe $target\n";
     }
 
-    private function getImagesForArtefact($artefactId){
-      $pattern = "=/" . $artefactId . "_=";
+    private function getImagesForArtefact($artefactId, $seperator = "_" ){
+      $pattern = "=/" . $artefactId . $seperator . "=";
       $imagesWithFullPath = preg_grep($pattern, $this->images);
-
       $pattern = "=" .  $this->sourceBasePath . "/=";
       $imagesWithRelativePath = preg_replace($pattern, "", $imagesWithFullPath);
       
@@ -216,7 +225,6 @@ class JsonOperations
 
       }
 
-      
       return $imageStack;
     }
 
