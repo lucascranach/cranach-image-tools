@@ -1,0 +1,11 @@
+/Volumes/cranach-2022/_test/_source/DE_smbGG_637_FR190A/02_Reverse/DE_smbGG_637_FR190A_2014_Reverse.tif
+/Volumes/cranach-2022/_test/_source/DE_smbGG_637_FR190A/06_Detail/DE_smbGG_637_FR190A_2014_Detail-001.tif
+/Volumes/cranach-2022/_test/_source/DE_smbGG_637_FR190A/01_Overall/DE_smbGG_637_FR190A_1995-02_Overall-001.tif
+/Volumes/cranach-2022/_test/_source/DE_smbGG_637_FR190A/01_Overall/DE_smbGG_637_FR190A_1930_photograph.tif
+/Volumes/cranach-2022/_test/_source/DE_smbGG_637_FR190A/01_Overall/DE_smbGG_637_FR190A_2014_Overall.tif
+/Volumes/cranach-2022/_test/_source/PRIVATE_NONE-P276_FR-none/02_Reverse/PRIVATE_NONE-P276_FR-none_2011_Reverse.tif
+/Volumes/cranach-2022/_test/_source/PRIVATE_NONE-P276_FR-none/06_Detail/PRIVATE_NONE-P276_FR-none_2011_Detail-002.tif
+/Volumes/cranach-2022/_test/_source/PRIVATE_NONE-P276_FR-none/06_Detail/PRIVATE_NONE-P276_FR-none_2011_Detail-003.tif
+/Volumes/cranach-2022/_test/_source/PRIVATE_NONE-P276_FR-none/06_Detail/PRIVATE_NONE-P276_FR-none_2011_Detail-001.tif
+/Volumes/cranach-2022/_test/_source/PRIVATE_NONE-P276_FR-none/01_Overall/PRIVATE_NONE-P276_FR-none_2011_Overall.tif
+/Volumes/cranach-2022/_test/_source/PRIVATE_NONE-P276_FR-none/01_Overall/PRIVATE_NONE-P276_FR-none_2011_Overall-001.tif

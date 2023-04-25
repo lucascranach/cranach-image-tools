@@ -1,0 +1,26 @@
+{
+  "pathAssets": "/Users/cnoss/git/lucascranach/image-tools",
+  "cachePath": "/Users/cnoss/git/lucascranach/image-tools/cache",
+  "magickCommand": "",
+  "chown": "cnoss:www",
+  "defaultPeriod": "-10000",
+  "unconvertedImageParams": {
+    "paintings": {
+      "path": "/Volumes/cranach-2022/010-pyramid"
+    },
+    "graphics": {
+      "path": "/Volumes/Elements/cranach-data/graphiken"
+    }
+  },
+  "preparedImageParams": {
+    "paintings": {
+      "path": "/Volumes/cranach-2022/020-tif-paintings",
+      "pattern": ["*.tif"]
+    },
+    "graphics": {
+      "path": "/Volumes/ElementsTHStick/020-tif-graphics",
+      "pattern": ["*.tif"]
+    }
+  },
+  "targetPath": "/Volumes/ElementsTHStick/030-structure-test"
+}

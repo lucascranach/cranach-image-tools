@@ -1,0 +1,97 @@
+@import './reset';
+@import './variables';
+@import './icons';
+@import './fonts';
+@import './components';
+@import './json-viewer';
+
+* {
+  box-sizing: content-box;
+}
+
+html{
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans-serif);
+  font-size: var(--bfs);
+  font-weight: var(--fw-light);
+  color: var(--lightest);
+  background-color: var(--darkest);
+}
+
+a {
+  color: var(--darkest);
+  text-decoration: none;
+}
+
+/* Struct Elements & Layout
+-----------------------------------------------------------------------------*/
+
+
+/* Templates
+-----------------------------------------------------------------------------*/
+
+.template {
+  color: var(--darkest);
+  background-color: var(--darkest);
+}
+
+/* Title & Subtitle
+-----------------------------------------------------------------------------*/
+
+.title,
+.subtitle,
+.chapter {
+  font-size: var(--m);
+  margin-bottom: var(--l);
+  line-height: var(--lh-headlines);
+  position: relative;
+}
+
+.title+.subtitle {
+  margin-top: -var(--l + $xs);
+}
+
+.title {
+  font-weight: var(--fw-bold);
+  &:after {
+    content: " ";
+    display: block;
+    width: var(--xl);
+    margin-top: var(--xs);
+    margin-bottom: var(--xs);
+    border-top: solid var(--border-stroke-weight $accent);
+  }
+}
+
+.subtitle,
+.chapter {
+  font-weight: var(--fw-regular);
+}
+
+.headline {
+  font-size: var(--bfs);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--m);
+}
+
+
+/* Text
+-----------------------------------------------------------------------------*/
+
+
+p,
+th,
+td {
+  line-height: var(--lh-normal);
+}
+
+
+/* Helper
+-----------------------------------------------------------------------------*/
+
+.has-hover-hand:hover{
+  cursor: pointer;
+}

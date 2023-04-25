@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+    <link rel="stylesheet" href="./styles/main.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>cda_ // Image Browser</title>
+  </head>
+  <body>
+
+    <main class="content">
+      <section class="dir-list-column">
+        <nav class="main-navigation" role="navigation" aria-label="main navigation" data-component="molecules/navigation">
+          <a class="logo">
+            <span class="logo" data-component="atoms/logo">cda_&nbsp;</span>
+          </a>
+
+          <form id="search" class="search">
+            <span class="material-icons">search</span><input id="searchField" type="text" class="search-field" placeholder="*">
+          </form>
+          <div id="searchInfo" class="search-info">
+            <template id="searchInfoTemplate">
+              <li class="search-info__item {{class}}">
+                <span class="material-icons">{{icon}}</span>{{text}}</li>
+            </template>
+          </div>
+        </nav>
+
+        <ul id="dirs" class="dir-list">
+          <template id="dirTemplate">
+            <li class="dir-list__item has-hover-hand" id="{{id}}" data-type="{{type}}" data-src="{{src}}">
+              <span class="material-icons">{{icon}}</span>{{name}}</li>
+          </template>
+        </ul>
+      </section>
+      <section id="stage">
+        <template id="imageTemplate">
+          <img src="{{src}}">
+        </template>
+        <div id="stageContent">
+        </div>
+        <div id="imageInfo" class="image-info">
+          <template id="imageInfoTemplate">
+            <li class="image-info__item {{class}}">
+              <span class="material-icons">{{icon}}</span>{{text}}</li>
+          </template>
+        </div>
+      </section>
+    </main>
+  </body>
+  <script src="https://cdn.jsdelivr.net/npm/mustache@4.2.0/mustache.min.js"></script>
+  <script src="./lib/openseadragon-bin-2.4.2/openseadragon.min.js"></script>
+  <script src="./lib/json-viewer/src/json-viewer.js"></script>
+  <script src="./scripts/main.js"></script>
+</html>
