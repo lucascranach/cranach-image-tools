@@ -43,17 +43,16 @@ class JsonOperations
         }
         $artefactImagesByType = $this->getArtefactImagesByType($artefactImages);    
         
+        $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
+        
         $overallOverview = array_filter($artefactImages, function($image){
           return preg_match("=Overall_Overview=", $image);
         });
-
         $hasOverallOverview = sizeof($overallOverview) > 0 ? true : false;
 
-        $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
-        $artefactData = array(
-          'imageStack' => $this->createImageStack($artefactImagesByType, $artefactImages),
-          'overallOverview' => $hasOverallOverview
-        );
+        $imageStack["overall"]["hasOverallOverview"] = $hasOverallOverview;
+
+        $artefactData = array('imageStack' => $imageStack);
         $this->writeJson($artefactId, $artefactData);
       }
     }
@@ -144,7 +143,7 @@ class JsonOperations
         $imageStack[$typeName] = $this->getSizeVariantsForImagesOfType($images, $artefactImages);
       }
 
-      return ['imageStack'=>$imageStack];
+      return $imageStack;
     }
 
     private function removeSelectedItems($pattern, $artefactImages){
