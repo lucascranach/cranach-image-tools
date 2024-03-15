@@ -2,7 +2,9 @@
 
 class ImageCollection
 {
+
     public $images = array();
+    public $params = array();
 
     public function __construct(Array $params)
     {

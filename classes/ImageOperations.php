@@ -2,6 +2,9 @@
 
 class ImageOperations
 {
+    private $config;
+    private $params;
+    
     public function __construct($config, $params)
     {
         $this->config = $config;

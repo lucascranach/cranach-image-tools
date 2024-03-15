@@ -1,7 +1,19 @@
 <?php
 
 class JsonOperations
-{
+{ 
+
+    private $config;
+    private $sourceBasePath;
+    private $source;
+    private $targetBasePath;
+    private $target;
+    private $pattern;
+    private $period;
+    private $modus;
+    private $images;
+    private $rkdImages;
+
     public function __construct($config, $params)
     {
         $this->config = $config;
@@ -14,6 +26,7 @@ class JsonOperations
         $this->modus = isset($params['modus']) ? $params['modus'] : false;
         $this->images = [];
         $this->rkdImages = [];
+
     }
     
     public function createJSONS(){
@@ -22,16 +35,26 @@ class JsonOperations
       
       foreach($artefactIds as $artefactId){
         $seperator = $this->modus === 'archivals' ? '-' : '_';
-        $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);
+        $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);        
         if(sizeof($artefactImages) === 0 && $this->modus === 'archivals'){
           preg_match("=(.*)_=", $artefactId, $res);
           $baseArtefactId = $res[1];
           $artefactImages = $this->getImagesForArtefact($baseArtefactId, "_");
         }
-        $artefactImagesByType = $this->getArtefactImagesByType($artefactImages);
-        $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
+        $artefactImagesByType = $this->getArtefactImagesByType($artefactImages);    
         
-        $this->writeJson($artefactId, $imageStack);
+        $overallOverview = array_filter($artefactImages, function($image){
+          return preg_match("=Overall_Overview=", $image);
+        });
+
+        $hasOverallOverview = sizeof($overallOverview) > 0 ? true : false;
+
+        $imageStack = $this->createImageStack($artefactImagesByType, $artefactImages);
+        $artefactData = array(
+          'imageStack' => $this->createImageStack($artefactImagesByType, $artefactImages),
+          'overallOverview' => $hasOverallOverview
+        );
+        $this->writeJson($artefactId, $artefactData);
       }
     }
 
@@ -45,7 +68,6 @@ class JsonOperations
     }
 
     private function getFragment($preSegment){
-      $rkdFragment = $this->config->MISC["rkdFragment"];
       $koeFragment = $this->config->MISC["koeFragment"];
       $fragment = preg_match("=rkd=i", $preSegment) ? $rkdFragment : $koeFragment;
       return $fragment;
