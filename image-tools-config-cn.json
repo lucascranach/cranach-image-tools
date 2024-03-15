@@ -6,7 +6,7 @@
   "defaultPeriod": "-10000",
   "unconvertedImageParams": {
     "paintings": {
-      "path": "/Volumes/cranach-2022/010-pyramid"
+      "path": "/Volumes/cranach-2022/CURRENT_IMPORT/_source/"
     },
     "graphics": {
       "path": "/Volumes/Elements/cranach-data/graphiken"
@@ -14,13 +14,24 @@
   },
   "preparedImageParams": {
     "paintings": {
-      "path": "/Volumes/cranach-2022/020-tif-paintings",
+      "path": "/Volumes/cranach-2022/CURRENT_IMPORT/_source/neu-rechnen",
       "pattern": ["*.tif"]
     },
     "graphics": {
-      "path": "/Volumes/ElementsTHStick/020-tif-graphics",
+      "path": "/Volumes/cranach-2022/CURRENT_IMPORT/_source/neu-rechnen",
+      "pattern": ["*.tif"]
+    },
+    "archivals": {
+      "path": "/Volumes/cranach-2022/CURRENT_IMPORT/_source/neu-rechnen",
       "pattern": ["*.tif"]
     }
   },
-  "targetPath": "/Volumes/ElementsTHStick/030-structure-test"
+  "metaDataSource4": "/Volumes/cranach-2022/Druckgrafik",
+  "metaDataSource": "/Volumes/cranach-2022/CURRENT_IMPORT/_source/neu-rechnen",
+  "metaDataSource3": "/Volumes/cranach-2022/kkl-exif",
+  "metaDataSource2": "/Volumes/cranach-2022/020-tif-graphics",
+  "metaDataSource1": "/Volumes/cranach-2022/020-tif-paintings",
+  "metaDataSourcetest": "/Volumes/cranach-2022/_test/_source",
+  "metaDataTarget": "/Volumes/cranach-2022/100-metadata",
+  "targetPath": "/Volumes/cranach-2022/CURRENT_IMPORT/_target/neu-gerechnet"
 }

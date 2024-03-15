@@ -76,32 +76,34 @@ class ImageOperations
 
         if ($width >= $height) {
             $ratio = $width / $height;
-            $tileAmount = 4 + floor($width / 3000);
+            $tileAmount = 4 + floor($width / 5000);
             $tileSize = round($height / $tileAmount);
 
         } else {
             $ratio = $height / $width;
-            $tileAmount = 4 + floor($height / 3000);
+            $tileAmount = 4 + floor($height / 5000);
             $tileSize = round($width / $tileAmount);
         }
-
         $cols = round($width / $tileSize);
         $rows = round($height / $tileSize);
 
         $colorMap = $this->getColorMap($source, $cols, $rows);
 
         $watermarkdata = [];
-        $baseFontSize = round($tileSize / 30);
+        $baseFontSize = round($tileSize / 25);
 
         for ($col = 0; $col <= $cols; $col++) {
             for ($row = 0; $row <= $rows; $row++) {
+
                 $skip = rand(0, 10);
-                if ($skip > 7) {
+                if ($skip > 6) {
                     continue;
                 }
 
                 $pointsize = rand($baseFontSize, $baseFontSize * 5);
-                $opacity = rand(3, 6) / 10;
+                $opacityMax = 8;
+                $opacityRelMax = ceil($opacityMax * $row / $rows);
+                $opacity = rand(2,$opacityRelMax) / 10;
 
                 $xRand = rand(0, round($tileSize / 4));
                 $x = ($col * $tileSize) + $xRand;
