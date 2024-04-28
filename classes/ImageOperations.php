@@ -171,7 +171,6 @@ class ImageOperations
         $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
         $cmd = "convert -interlace plane -quiet $handleMetadata $watermarkData -strip -quality $quality " . $resize . " $sharpen $source $target";
         shell_exec($cmd);
-
         chmod($target, 0755);
 
         return true;

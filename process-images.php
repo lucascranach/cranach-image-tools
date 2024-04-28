@@ -73,6 +73,7 @@ function getConfigFile()
     }
 
     $config = file_get_contents($config_file);
+
     return json_decode(trim($config));
 }
 
@@ -345,6 +346,56 @@ function removeTargetContents($config)
     return;
 }
 
+function moveSourceFiles($params)
+{
+    print "----------\n";
+    print "Soll der Inhalt von folgendem Verzeichnis ". $params["sourceBasePath"] . " in das Verzeichnis " . $params["targetBasePath"] . " kopiert werden?";
+    print "\n[j,n] ";
+    $choice = rtrim(fgets(STDIN));
+    if ($choice !== 'j') {
+        return;
+    }
+
+    $cmd = "find " . $params["sourceBasePath"] . "  -maxdepth 1 -mindepth 1 -type d";
+    exec($cmd, $dirs);
+
+    foreach ($dirs as $dir) {
+        print "----------\n$dir\n";
+        $cmd = "rsync -av " . $dir . " " . $params["targetBasePath"] . "/";
+        exec($cmd, $output);
+        print implode("\n", $output);
+    }
+
+    print "\n\n";
+
+    return;
+}
+
+function moveTargetFiles($params)
+{
+    print "----------\n";
+    print "Soll der Inhalt von folgendem Verzeichnis ". $params["sourceBasePath"] . " in das Verzeichnis " . $params["targetBasePath"] . " kopiert werden?";
+    print "\n[j,n] ";
+    $choice = rtrim(fgets(STDIN));
+    if ($choice !== 'j') {
+        return;
+    }
+
+    $cmd = "find " . $params["sourceBasePath"] . "  -maxdepth 1 -mindepth 1 -type d";
+    exec($cmd, $dirs);
+
+    foreach ($dirs as $dir) {
+        print "----------\n$dir\n";
+        $cmd = "rsync -av " . $dir . " " . $params["targetBasePath"] . "/";
+        exec($cmd, $output);
+        print implode("\n", $output);
+    }
+
+    print "\n\n";
+
+    return;
+}
+
 function recursiveRemoveDirectory($path, $isSubDir = false)
 {
     $files = glob($path . '/*');
@@ -375,7 +426,7 @@ function chooseImageType($config)
         $options[$count] = $key;
     }
 
-    print "Für welchen Bildtyp sollen Derivate erzeugt werden? ";
+    print "Welcher Bildtyp soll behandelt werden? ";
     $choice = intval(rtrim(fgets(STDIN)));
     if (!array_key_exists($choice, $options)) {
         print "\nDieser Bildtyp ist nicht verfügbar.\n\n";
@@ -436,6 +487,8 @@ function showMainMenu($config)
         "generate-json" => "JSON Dateien erzeugen",
         "generate-json-archivals" => "JSON Dateien für Archivalien erzeugen",
         "extract-metadata" => "Metadaten extrahieren",
+        "move-source-files" => "Quelldateien in originals Verzeichnis verschieben",
+        "move-target-files" => "Zieldateien in imageserver Verzeichnis verschieben",
         "remove-target-contents" => "Zielverzeichnis löschen",
         "exit" => "Skript beenden",
     ];
@@ -564,11 +617,37 @@ function showMainMenu($config)
             $metadataService->extractMetadata();
             exitScript();
             break;
-
+        
         case "remove-target-contents":
             removeTargetContents($config);
             showMainMenu($config);
+            break;            
+
+        case "move-source-files":
+
+            $entityType = chooseImageType($config);
+            
+            $params = array(
+                "sourceBasePath" => $config->LOCALCONFIG->sourcePath,
+                "targetBasePath" => $config->LOCALCONFIG->originals->$entityType
+            );
+           
+            moveSourceFiles($params);
+            showMainMenu($config);
             break;
+
+        case "move-target-files":
+
+            $entityType = chooseImageType($config);
+            
+            $params = array(
+                "sourceBasePath" => $config->LOCALCONFIG->targetPath,
+                "targetBasePath" => $config->LOCALCONFIG->imageserver
+            );
+           
+            moveTargetFiles($params);
+            showMainMenu($config);
+            break;            
 
         case "create-raw-paintings":
             createRawImages('paintings', $config);

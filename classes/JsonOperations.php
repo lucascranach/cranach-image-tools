@@ -35,7 +35,15 @@ class JsonOperations
       
       foreach($artefactIds as $artefactId){
         $seperator = $this->modus === 'archivals' ? '-' : '_';
-        $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);        
+        $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);
+
+        // nix gefunden? Dann mal anderen Seperator probieren
+        if(sizeof($artefactImages) === 0 && $this->modus === 'archivals'){
+          $seperator = "_";
+          $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);
+        }
+
+        // immer noch nix gefunden? Dann mal den alten ID-Teil abschneiden
         if(sizeof($artefactImages) === 0 && $this->modus === 'archivals'){
           preg_match("=(.*)_=", $artefactId, $res);
           $baseArtefactId = $res[1];
@@ -68,6 +76,8 @@ class JsonOperations
 
     private function getFragment($preSegment){
       $koeFragment = $this->config->MISC["koeFragment"];
+      $rkdFragment = $this->config->MISC["rkdFragment"];
+
       $fragment = preg_match("=rkd=i", $preSegment) ? $rkdFragment : $koeFragment;
       return $fragment;
     }
