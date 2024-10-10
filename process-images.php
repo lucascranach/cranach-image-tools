@@ -223,7 +223,11 @@ function createRecursiveFolder($path)
     foreach ($segments as $segment) {
         array_push($growingPath, $segment);
         $newPath = implode("/", $growingPath);
-        if (preg_match("=[a-zA-Z]=", $newPath) && !file_exists($newPath)) {mkdir($newPath, 0775);}
+        if (preg_match("=[a-zA-Z]=", $newPath) && !file_exists($newPath)) {
+            var_dump($newPath);
+            mkdir($newPath, 0775);
+
+        }
     }
     return;
 }
@@ -334,14 +338,14 @@ function createRawImages($imageType, $config)
 function removeTargetContents($config)
 {
     print "----------\n";
-    print "Soll der Inhalt von folgendem Verzeichnis gelöscht werden?\n" . $config->TARGET;
+    print "Soll der Inhalt von folgendem Verzeichnis gelöscht werden?\n" . $config->LOCALCONFIG->targetPath;
     print "\n[j,n] ";
     $choice = rtrim(fgets(STDIN));
     if ($choice !== 'j') {
         return;
     }
 
-    recursiveRemoveDirectory($config->TARGET);
+    recursiveRemoveDirectory($config->LOCALCONFIG->targetPath);
     print "Inhalte wurden gelöscht.\n";
     return;
 }
@@ -411,6 +415,7 @@ function chooseImageType($config)
 
     $imageTypes = [
         "paintings" => "Gemälde",
+        "drawings" => "Zeichnungen",
         "graphics" => "Grafiken",
         "archivals" => "Archivalien",
     ];

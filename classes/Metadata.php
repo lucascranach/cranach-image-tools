@@ -37,6 +37,7 @@ class Metadata
         
         $artefactId = $this->extractArtefactId($image);
         $filename = $this->extractFilename($image);
+
         $this->createMetadataJson($artefactId, $filename, $metaDataObject);
         $this->writeRawMetadata($artefactId, $filename, $metadataRaw);
       }
@@ -46,6 +47,7 @@ class Metadata
 
       $filenameWithoutSuffix = preg_replace("=\.tif=i", "", $filename);
       $target = $this->target . "/" . $artefactId . "/". $filenameWithoutSuffix . "-" . $this->config->MISC["metadata-filename"];
+
       createRecursiveFolder($target);
 
       $json = json_encode($metaDataObject, JSON_UNESCAPED_UNICODE);
