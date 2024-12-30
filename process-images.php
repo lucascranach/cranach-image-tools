@@ -34,6 +34,7 @@ $sizes = array();
 $sizes["xsmall"] = '{ "suffix": "xs",     "width": 200,    "quality": 70, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": false }';
 $sizes["small"] = '{ "suffix": "s",      "width": 400,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
 $sizes["medium"] = '{ "suffix": "m",      "width": 600,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": false, "metadata": true }';
+$sizes["large"] = '{ "suffix": "l",      "width": 1200,    "quality": 80, "sharpen": "1.5x1.2+1.0+0.10", "watermark": true, "metadata": true }';
 $sizes["origin"] = '{ "suffix": "origin", "width": "auto", "quality": 95, "sharpen": false,              "watermark": true,  "metadata": true }';
 $sizes["tiles"] = '{ "type": "dzi", "suffix": "dzi"}';
 $config->SIZES = $sizes;
@@ -49,6 +50,8 @@ $types["photomicrograph"] = '{ "fragment":"Photomicrograph", "sort": "07" }';
 $types["conservation"] = '{ "fragment":"Conservation", "sort": "08" }';
 $types["other"] = '{ "fragment":"Other", "sort": "09" }';
 $types["analysis"] = '{ "fragment":"Analysis", "sort": "10" }';
+$types["rkd"] = '{ "fragment":"RKD", "sort": "11" }';
+$types["koe"] = '{ "fragment":"KOE", "sort": "12" }';
 $types["transmitted-light"] = '{ "fragment":"Transmitted-light", "sort": "13" }';
 $config->TYPES = $types;
 
@@ -140,10 +143,18 @@ function getCliOptions()
 {
     $ret = [];
     $options = getopt("p:d:o:t:");
-    if (isset($options["p"])) {$ret["pattern"] = $options["p"];}
-    if (isset($options["d"])) {$ret["dir"] = $options["d"];}
-    if (isset($options["o"])) {$ret["overwrite"] = true;}
-    if (isset($options["t"])) {$ret["period"] = $options["t"];}
+    if (isset($options["p"])) {
+        $ret["pattern"] = $options["p"];
+    }
+    if (isset($options["d"])) {
+        $ret["dir"] = $options["d"];
+    }
+    if (isset($options["o"])) {
+        $ret["overwrite"] = true;
+    }
+    if (isset($options["t"])) {
+        $ret["period"] = $options["t"];
+    }
 
     return $ret;
 }
@@ -160,7 +171,9 @@ function confirmParams($params)
     print "\nAlle Angaben in Ordnung? [j,n] ";
     $choice = rtrim(fgets(STDIN));
 
-    if ($choice !== 'j') {exitScript();}
+    if ($choice !== 'j') {
+        exitScript();
+    }
     return true;
 }
 
@@ -205,10 +218,14 @@ function removePyramidDoubles($files)
     $res = [];
     foreach ($files as $path) {
         $filename = getFilenameFromPath($path);
-        if (!$filename) {continue;}
+        if (!$filename) {
+            continue;
+        }
         $pattern = "=$filename=";
         $in_array = preg_grep($pattern, $res);
-        if (sizeof($in_array) === 0) {array_push($res, $path);}
+        if (sizeof($in_array) === 0) {
+            array_push($res, $path);
+        }
     }
 
     return $res;
@@ -294,7 +311,9 @@ function createRawImages($imageType, $config)
     }
 
     $loggingPath = $config->PATHS["rawLog"];
-    if (file_exists($loggingPath)) {unlink($loggingPath);}
+    if (file_exists($loggingPath)) {
+        unlink($loggingPath);
+    }
 
     print "----------\n";
     print "Raw Version erzeugen von: $imageType\n";
@@ -406,7 +425,9 @@ function recursiveRemoveDirectory($path, $isSubDir = false)
     foreach ($files as $item) {
         is_dir($item) ? recursiveRemoveDirectory($item, true) : unlink($item);
     }
-    if ($isSubDir) {rmdir($path);}
+    if ($isSubDir) {
+        rmdir($path);
+    }
     return;
 }
 
@@ -524,7 +545,10 @@ function showMainMenu($config)
 
     print "\nWas soll gemacht werden? ";
     $choice = intval(rtrim(fgets(STDIN)));
-    if (!array_key_exists($choice, $options)) {print "\nDiese Aktion ist nicht verfügbar.\n\n";exit;}
+    if (!array_key_exists($choice, $options)) {
+        print "\nDiese Aktion ist nicht verfügbar.\n\n";
+        exit;
+    }
 
     switch ($options[$choice]) {
         case "generate-variants":
@@ -622,21 +646,21 @@ function showMainMenu($config)
             $metadataService->extractMetadata();
             exitScript();
             break;
-        
+
         case "remove-target-contents":
             removeTargetContents($config);
             showMainMenu($config);
-            break;            
+            break;
 
         case "move-source-files":
 
             $entityType = chooseImageType($config);
-            
+
             $params = array(
-                "sourceBasePath" => $config->LOCALCONFIG->sourcePath,
+                "sourceBasePath" => $config->LOCALCONFIG->preparedImageParams->$entityType->path,
                 "targetBasePath" => $config->LOCALCONFIG->originals->$entityType
             );
-           
+
             moveSourceFiles($params);
             showMainMenu($config);
             break;
@@ -644,15 +668,15 @@ function showMainMenu($config)
         case "move-target-files":
 
             $entityType = chooseImageType($config);
-            
+
             $params = array(
                 "sourceBasePath" => $config->LOCALCONFIG->targetPath,
                 "targetBasePath" => $config->LOCALCONFIG->imageserver
             );
-           
+
             moveTargetFiles($params);
             showMainMenu($config);
-            break;            
+            break;
 
         case "create-raw-paintings":
             createRawImages('paintings', $config);

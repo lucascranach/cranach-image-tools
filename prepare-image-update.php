@@ -72,13 +72,15 @@ function equalizeTifSuffix($config)
     print "Folgender Commands werden ausgeführt:\n";
     print $cmd1 . "\n";
     print $cmd2 . "\n";
-    print $cmd3 . "\n";    
-    
+    print $cmd3 . "\n";
+
 
     print "\nPasst das so? [j,n] ";
     $choice = rtrim(fgets(STDIN));
 
-    if ($choice !== 'j') {exitScript();}
+    if ($choice !== 'j') {
+        exitScript();
+    }
 
     exec($cmd1, $output);
     print implode("\n", $output);
@@ -91,7 +93,8 @@ function equalizeTifSuffix($config)
 }
 
 
-function moveArtefacts($args){
+function moveArtefacts($args)
+{
 
     $originals = $args["originals"];
     $sourcePath = $args["sourcePath"];
@@ -103,36 +106,38 @@ function moveArtefacts($args){
     print "----------\n";
     print "Folgender Command wird ausgeführt:\n";
     print $cmd . "\n";
-    
+
     print "\nPasst das so? [j,n] ";
     $choice = rtrim(fgets(STDIN));
 
-    if ($choice !== 'j') {exitScript();}
+    if ($choice !== 'j') {
+        exitScript();
+    }
 
     exec($cmd, $artefacts);
 
-
-    foreach($artefacts as $artefact) {
+    foreach ($artefacts as $artefact) {
         $cmd = "find " . $originals . " -maxdepth 2 -type d -name " . $artefact;
         $output = [];
+        print "$cmd\n";
         exec($cmd, $output);
-        
+
         if (count($output) == 0) {
-            print "----------\n";
             print "Kein Ordner für " . $artefact . " gefunden.\n";
+            print "----------\n";
             continue;
         }
 
         $cmd = "mv " . $output[0] . " " . $mergedSourcePath . "/";
         exec($cmd, $output);
-        
+
         print implode("\n\n", $output);
     }
 }
 
 function removeItemsThatWillBeReplacedLater($config)
 {
-    
+
     $toBeMergedSubfolder = $config->LOCALCONFIG->toBeMergedSubfolder;
     $removeItemList = $config->LOCALCONFIG->removeItemList;
     $mergedSourcePath = $config->LOCALCONFIG->mergedSourcePath;
@@ -143,16 +148,20 @@ function removeItemsThatWillBeReplacedLater($config)
 
     foreach ($items as $item) {
         $item = trim($item);
-        if (empty($item)) {continue;}
+        if (empty($item)) {
+            continue;
+        }
         $cmd = "find " . $mergedSourcePath . " -name '" . $item . ".tif' -type f -exec rm {} \;";
         print "----------\n";
         print "Folgender Command wird ausgeführt:\n";
         print $cmd . "\n";
-        
+
         print "\nPasst das so? [j,n] ";
         $choice = rtrim(fgets(STDIN));
 
-        if ($choice !== 'j') { exitScript(); }
+        if ($choice !== 'j') {
+            exitScript();
+        }
 
         exec($cmd, $output);
         print implode("\n", $output);
@@ -198,15 +207,16 @@ function rsyncFiles($params)
     return;
 }
 
-function subivideArchivalsIntoSubfolder($config){
+function subivideArchivalsIntoSubfolder($config)
+{
 
     $sourcePath = $config->LOCALCONFIG->sourcePathArchivals;
     $sourcePathData = $config->LOCALCONFIG->sourcePathData;
     $targetPath = $config->LOCALCONFIG->sourcePathArchivalsWithSubfolder;
     $archivalsListSrc = $sourcePathData . "/". $config->LOCALCONFIG->archivalsItemList;
-    
+
     $archivalsList = explode("\n", file_get_contents($archivalsListSrc));
-    
+
 
 
     $cmd = "find " . $sourcePath . "/ -maxdepth 1 -type f -name '*.tif' -exec basename {} \;";
@@ -214,20 +224,24 @@ function subivideArchivalsIntoSubfolder($config){
 
     foreach ($archivalsList as $archivalItem) {
         $archival = trim($archivalItem);
-        if (empty($archivalItem)) {continue;}
+        if (empty($archivalItem)) {
+            continue;
+        }
 
-        foreach($itemsToBeImported as $item) {
+        foreach ($itemsToBeImported as $item) {
             $item = trim($item);
-            if (empty($item)) {continue;}
+            if (empty($item)) {
+                continue;
+            }
 
             $itemBasename = preg_replace("/\.tif/", "", $item);
-            
+
             $archivalItem = preg_replace("/\s/", "", $archivalItem);
             $archivalItem = preg_replace("/\//", "", $archivalItem);
             $archivalItem = preg_replace("/\./", "", $archivalItem);
 
             if (strpos($itemBasename, $archivalItem) !== false) {
-                $cmd = "mkdir -p " . $targetPath . "/" . $archivalItem . 
+                $cmd = "mkdir -p " . $targetPath . "/" . $archivalItem .
                     " && mkdir -p " . $targetPath . "/" . $archivalItem . "/01_Overall" .
                     " && mv " . $sourcePath . "/" . $item . " " . $targetPath . "/" . $archivalItem . "/01_Overall/" . $item;
                 exec($cmd, $output);
@@ -235,29 +249,32 @@ function subivideArchivalsIntoSubfolder($config){
             }
         }
     }
-exit;
+    exit;
     foreach ($res as $item) {
         $item = trim($item);
-        if (empty($item)) {continue;}
+        if (empty($item)) {
+            continue;
+        }
 
         $itemBasename = preg_replace("/\.tif/", "", $item);
         $tempArchivalsList = $archivalsList;
 
-        var_dump(array_filter($tempArchivalsList, function($archival) {
+        var_dump(array_filter($tempArchivalsList, function ($archival) {
             global $itemBasename;
             var_dump($archival, $itemBasename);
         }, ARRAY_FILTER_USE_BOTH));
 
         //var_dump($basename);
     }
-    
+
     exit;
-    var_dump($sourcePath, $targetPath); exit;
+    var_dump($sourcePath, $targetPath);
+    exit;
 
 }
 
 function addImagesToArtefacts($config)
-{   
+{
     $sourcePath = $config->LOCALCONFIG->sourcePath;
     $addImagesFolder = $sourcePath ."/". $config->LOCALCONFIG->toBeMergedSubfolder->addImages;
     $renameOrDeleteFirstFolder = $sourcePath ."/". $config->LOCALCONFIG->toBeMergedSubfolder->renameOrDeleteFirst;
@@ -283,7 +300,8 @@ function addImagesToArtefacts($config)
     rsyncFiles($params);
 }
 
-function renameItems($config){
+function renameItems($config)
+{
     $toBeMergedSubfolder = $config->LOCALCONFIG->toBeMergedSubfolder;
     $renameItemList = $config->LOCALCONFIG->renameItemList;
     $mergedSourcePath = $config->LOCALCONFIG->mergedSourcePath;
@@ -297,31 +315,37 @@ function renameItems($config){
         $items = explode(";", trim($row));
 
         list($oldItemName, $newItemName) = $items;
-        
-        if (empty($oldItemName)) {continue;}
-        if (empty($newItemName)) {continue;}
+
+        if (empty($oldItemName)) {
+            continue;
+        }
+        if (empty($newItemName)) {
+            continue;
+        }
 
 
         //$cmd = "find " . $mergedSourcePath . " -name '" . $item . ".tif' -type f -exec rename 's/\.tif$/.old.tif/' {} \;";
         $cmd = "find " . $mergedSourcePath . " -name '" . $oldItemName . ".tif' -type f ";
         exec($cmd, $output);
 
-        if(count($output) == 0) {
+        if (count($output) == 0) {
             print "----------\n";
             print "Keine Datei für " . $oldItemName . " gefunden.\n";
             continue;
         }
 
         $cmd = "mv " . $output[0] . " " . $mergedSourcePath . "/" . $newItemName . ".tif";
-        
+
         print "----------\n";
         print "Folgender Command wird ausgeführt:\n";
         print $cmd . "\n";
-        
+
         print "\nPasst das so? [j,n] ";
         $choice = rtrim(fgets(STDIN));
 
-        if ($choice !== 'j') { exitScript(); }
+        if ($choice !== 'j') {
+            exitScript();
+        }
 
         exec($cmd, $output);
 
@@ -350,7 +374,7 @@ Die Abbildungen werden hier erwartet:
 EOT;
 
     print $config->LOCALCONFIG->sourcePath . "\n\n";
-    
+
     print "\nFolgende Aktionen sind verfügbar:\n";
 
     $count = 0;
@@ -364,7 +388,10 @@ EOT;
 
     print "\nWas soll gemacht werden? ";
     $choice = intval(rtrim(fgets(STDIN)));
-    if (!array_key_exists($choice, $options)) {print "\nDiese Aktion ist nicht verfügbar.\n\n";exit;}
+    if (!array_key_exists($choice, $options)) {
+        print "\nDiese Aktion ist nicht verfügbar.\n\n";
+        exit;
+    }
 
     switch ($options[$choice]) {
 
