@@ -4,7 +4,7 @@ class ImageOperations
 {
     private $config;
     private $params;
-    
+
     public function __construct($config, $params)
     {
         $this->config = $config;
@@ -14,6 +14,41 @@ class ImageOperations
     private function map($value, $valueRangeStart, $valueRangeEnd, $newRangeStart, $newRangeEnd)
     {
         return $newRangeStart + ($newRangeEnd - $newRangeStart) * (($value - $valueRangeStart) / ($valueRangeEnd - $valueRangeStart));
+    }
+
+    public function getIptcSpecialInstructions($source)
+    {
+        $cmd    = "exiftool -IPTC:SpecialInstructions -s -s -s " . escapeshellarg($source);
+        $result = shell_exec($cmd);
+
+        // Null-Check vor trim()
+        if ($result === null) {
+            return null;
+        }
+
+        $result = trim($result);
+        return $result !== '' ? $result : null;
+    }
+
+    public function parseSpecialInstructions($specialInstructions)
+    {
+        if (! $specialInstructions) {
+            return [
+                'noWatermark' => false,
+                'hasDownload'  => false,
+                'raw'          => null,
+            ];
+        }
+
+        // Kommaseparierte Werte in Array umwandeln und trimmen
+        $values = array_map('trim', explode(',', $specialInstructions));
+
+        return [
+            'noWatermark' => in_array('no-watermark', array_map('strtolower', $values)),
+            'hasDownload'  => in_array('download', array_map('strtolower', $values)),
+            'raw'          => $specialInstructions,
+            'values'       => $values,
+        ];
     }
 
     private function getColorMap($source, $cols, $rows)
@@ -33,7 +68,7 @@ class ImageOperations
         $map = [];
         foreach ($data as $row) {
             preg_match("=(.*?),(.*?):.*\((.*?)\,(.*?)\,(.*?)\,=", $row, $res);
-            if (!isset($res[1])) {
+            if (! isset($res[1])) {
                 continue;
             }
 
@@ -44,19 +79,19 @@ class ImageOperations
             $b = intval($res[5]);
 
             $reduce = 50;
-            $r = $r > 130 ? $r - $reduce : $r;
-            $g = $g > 130 ? $g - $reduce : $g;
-            $b = $b > 130 ? $b - $reduce : $b;
+            $r      = $r > 130 ? $r - $reduce : $r;
+            $g      = $g > 130 ? $g - $reduce : $g;
+            $b      = $b > 130 ? $b - $reduce : $b;
 
             $add = 50;
-            $r = $r < 120 ? $r + $add : $r;
-            $g = $g < 120 ? $g + $add : $g;
-            $b = $b < 120 ? $b + $add : $b;
+            $r   = $r < 120 ? $r + $add : $r;
+            $g   = $g < 120 ? $g + $add : $g;
+            $b   = $b < 120 ? $b + $add : $b;
 
             $map[$x][$y] = [
-                "color" => "$r, $g, $b",
+                "color"        => "$r, $g, $b",
                 "lightnessRaw" => $res[3],
-                "row" => $row,
+                "row"          => $row,
 
             ];
         }
@@ -68,21 +103,21 @@ class ImageOperations
     {
 
         $dynamic_watermark = $this->config->PATHS["watermark-dynamic"];
-        $font = $this->config->PATHS["font"];
+        $font              = $this->config->PATHS["font"];
 
         $dimensions = $this->getDimensions($source);
-        $width = $dimensions['width'];
-        $height = $dimensions['height'];
+        $width      = $dimensions['width'];
+        $height     = $dimensions['height'];
 
         if ($width >= $height) {
-            $ratio = $width / $height;
+            $ratio      = $width / $height;
             $tileAmount = 4 + floor($width / 5000);
-            $tileSize = round($height / $tileAmount);
+            $tileSize   = round($height / $tileAmount);
 
         } else {
-            $ratio = $height / $width;
+            $ratio      = $height / $width;
             $tileAmount = 4 + floor($height / 5000);
-            $tileSize = round($width / $tileAmount);
+            $tileSize   = round($width / $tileAmount);
         }
         $cols = round($width / $tileSize);
         $rows = round($height / $tileSize);
@@ -90,7 +125,7 @@ class ImageOperations
         $colorMap = $this->getColorMap($source, $cols, $rows);
 
         $watermarkdata = [];
-        $baseFontSize = round($tileSize / 25);
+        $baseFontSize  = round($tileSize / 25);
 
         for ($col = 0; $col <= $cols; $col++) {
             for ($row = 0; $row <= $rows; $row++) {
@@ -100,16 +135,16 @@ class ImageOperations
                     continue;
                 }
 
-                $pointsize = rand($baseFontSize, $baseFontSize * 5);
-                $opacityMax = 8;
+                $pointsize     = rand($baseFontSize, $baseFontSize * 5);
+                $opacityMax    = 8;
                 $opacityRelMax = ceil($opacityMax * $row / $rows);
-                $opacity = rand(2,$opacityRelMax) / 10;
+                $opacity       = rand(2, $opacityRelMax) / 10;
 
                 $xRand = rand(0, round($tileSize / 4));
-                $x = ($col * $tileSize) + $xRand;
+                $x     = ($col * $tileSize) + $xRand;
                 $yRand = rand(0, round($tileSize / 2));
-                $y = ($row * $tileSize) + $pointsize + $yRand;
-                if (!isset($colorMap[$col][$row])) {
+                $y     = ($row * $tileSize) + $pointsize + $yRand;
+                if (! isset($colorMap[$col][$row])) {
                     continue;
                 }
 
@@ -123,25 +158,42 @@ class ImageOperations
 
     public function manageTargetPath($source, $recipeData)
     {
-        $pattern = "=" . $this->params["source"] . "=";
-        $targetPath = preg_replace($pattern, $this->params["target"], $source);
-        $pattern = "=\..*?$=";
+        $pattern        = "=" . $this->params["source"] . "=";
+        $targetPath     = preg_replace($pattern, $this->params["target"], $source);
+        $pattern        = "=\..*?$=";
+
         return preg_replace($pattern, "-" . $recipeData->suffix . ".jpg", $targetPath);
     }
 
     public function processImage($image, $recipeTitle, $recipeData)
     {
         $source = $image;
+
+        $specialInstructions = $this->getIptcSpecialInstructions($source);
+        $instructions = isset($recipeData->watermark) && $recipeData->watermark === true ? $this->parseSpecialInstructions($specialInstructions)
+            : $this->parseSpecialInstructions(null);
+
+
+        if ($instructions['noWatermark']) {
+            echo "No Watermark needed for $recipeTitle. ";
+        }
+
+        if ($instructions['hasDownload']) {
+            echo "Download is set for $recipeTitle. ";
+        }
+
         $target = $this->manageTargetPath($source, $recipeData);
 
         if (file_exists($target)) {
-          print "-";
-          return;
-      }
+            print "-";
+            return;
+        }
         createRecursiveFolder($target);
 
-        $watermarkData = isset($recipeData->watermark) && $recipeData->watermark === true ? $this->createWatermarkData($source, $target) : false;
-        $this->resizeImage($source, $target, $recipeData, $watermarkData);
+        $watermarkData = isset($recipeData->watermark)
+        && $recipeData->watermark === true
+        && !$instructions['noWatermark'] ? $this->createWatermarkData($source, $target) : false;
+        $this->resizeImage($source, $target, $recipeData, $watermarkData, $instructions);
 
         return true;
 
@@ -153,25 +205,30 @@ class ImageOperations
         $ret = explode(" ", shell_exec($cmd));
 
         list($width, $height) = explode("x", $ret[2]);
-        return array('width' => $width, 'height' => $height);
+        return ['width' => $width, 'height' => $height];
     }
 
-    public function resizeImage($source, $target, $recipeData, $watermarkData)
+    public function resizeImage($source, $target, $recipeData, $watermarkData, $instructions)
     {
 
-        $sharpen = (isset($recipeData->sharpen)) ? $recipeData->sharpen : false;
-        $quality = (isset($recipeData->quality)) ? $recipeData->quality : $this->config->DIMENSIONS["qualityDefault"];
-        $width = (isset($recipeData->width)) ? $recipeData->width : $this->config->DIMENSIONS["imageWidthDefault"];
-        $height = (isset($recipeData->height)) ? $recipeData->height : $this->config->DIMENSIONS["imageWidthDefault"];
+        $sharpen  = (isset($recipeData->sharpen)) ? $recipeData->sharpen : false;
+        $quality  = (isset($recipeData->quality)) ? $recipeData->quality : $this->config->DIMENSIONS["qualityDefault"];
+        $width    = (isset($recipeData->width)) ? $recipeData->width : $this->config->DIMENSIONS["imageWidthDefault"];
+        $height   = (isset($recipeData->height)) ? $recipeData->height : $this->config->DIMENSIONS["imageWidthDefault"];
         $metadata = (isset($recipeData->metadata)) ? $recipeData->metadata : false;
 
         $source .= "[0]";
         $handleMetadata = ($metadata === false) ? "+profile iptc,8bim" : "";
-        $sharpen = ($sharpen !== false) ? "-unsharp $sharpen" : "";
-        $resize = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
-        $cmd = "convert -interlace plane -quiet $handleMetadata $watermarkData -strip -quality $quality " . $resize . " $sharpen $source $target";
+        $sharpen        = ($sharpen !== false) ? "-unsharp $sharpen" : "";
+        $resize         = ($width == "auto") ? "" : " -resize " . $width . "x" . $height;
+        $cmd            = "convert -interlace plane -quiet $handleMetadata $watermarkData -strip -quality $quality " . $resize . " $sharpen $source $target";
         shell_exec($cmd);
         chmod($target, 0755);
+
+        if ($instructions['hasDownload']) {
+            $cmd = "exiftool -overwrite_original -iptc:SpecialInstructions='Download' $target";
+            shell_exec($cmd);
+        }
 
         return true;
     }
@@ -209,8 +266,8 @@ class ImageOperations
     {
         $source = $asset;
         $target = preg_replace("=\-origin\.jpg=", "", $asset);
-        $dzi = $target . '.dzi';
-        $files = $target . '_files';
+        $dzi    = $target . '.dzi';
+        $files  = $target . '_files';
 
         /*if (file_exists($files) && $this->config->MODE !== "json-only") {
             $cmd = 'rm -Rf ' . $files;
@@ -222,7 +279,7 @@ class ImageOperations
             return;
         }
         $cmd = 'vips dzsave ' . $source . ' ' . $target . ' --suffix .jpg[Q=95]';
-    
+
         shell_exec($cmd);
         chmod($target . '.dzi', 0755);
 

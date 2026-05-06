@@ -42,8 +42,6 @@ class JsonOperations
             if (sizeof($artefactImages) === 0 && $this->modus === 'archivals') {
                 $seperator = "_";
                 $artefactImages = $this->getImagesForArtefact($artefactId, $seperator);
-
-
             }
 
             // immer noch nix gefunden? Dann mal den alten ID-Teil abschneiden
@@ -65,8 +63,8 @@ class JsonOperations
             $imageStack["overall"]["hasOverallOverview"] = $hasOverallOverview;
 
             $imageStack = $this->cleanStack($imageStack);
-
             $artefactData = array('imageStack' => $imageStack);
+
             $this->writeJson($artefactId, $artefactData);
         }
     }
@@ -76,7 +74,7 @@ class JsonOperations
         $cleanStack = [];
 
         foreach ($stack as $key => $value) {
-            if (sizeof($value["images"]) > 0) {
+            if (isset($value["images"]) && sizeof($value["images"]) > 0) {
                 $cleanStack[$key] = $value;
             }
         }
@@ -84,6 +82,20 @@ class JsonOperations
         return $cleanStack;
         exit;
     }
+
+    private function checkDownloadFlag($imagePath)
+    {
+        $path = $this->config->LOCALCONFIG->targetPath . "/" . $imagePath;
+        $cmd = "exiftool -IPTC:SpecialInstructions '$path' | grep -i download";
+        $ret = shell_exec($cmd);
+
+        if ($ret === null || $ret === '') {
+            return false;
+        }
+
+        return preg_match("=download=i", $ret) === 1;
+    }
+
 
     private function getImageDimensions($imagePath)
     {
@@ -154,6 +166,8 @@ class JsonOperations
                 $maxHeight = $data[$sizeVariantName]["dimensions"]["height"] > $maxHeight
                   ? $data[$sizeVariantName]["dimensions"]["height"]
                   : $maxHeight;
+
+                $data[$sizeVariantName]["download"] = $this->checkDownloadFlag($imageForBasenameAndSizeVariant);
 
 
             }

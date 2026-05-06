@@ -64,6 +64,7 @@ function moveSourceFiles($params)
 function equalizeTifSuffix($config)
 {
     $sourcePath = $config->LOCALCONFIG->sourcePath;
+
     $cmd1 = "find " . $sourcePath . " -type f -name '*.TIF' -exec rename 's/\.TIF$/.tif/' {} \;";
     $cmd2 = "find " . $sourcePath . " -type f -name '*.TIFF' -exec rename 's/\.TIFF$/.tif/' {} \;";
     $cmd3 = "find " . $sourcePath . " -type f -name '*.tiff' -exec rename 's/\.tiff$/.tif/' {} \;";

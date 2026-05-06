@@ -1,0 +1,1 @@
+find . -name "Z_NO_NMO_NG-KH-B-16580*" -exec exiftool -IPTC:SpecialInstructions="download" '{}' ';'
